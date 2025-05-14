@@ -1,1 +1,2 @@
 # autoSteam
+前端相关的代码放在templates文件夹内，数据库相关的脚本放在DBScripts文件夹内。
