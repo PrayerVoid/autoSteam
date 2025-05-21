@@ -42,5 +42,5 @@ if __name__ == "__main__":
         "This is a longer example sentence to test the embedding API with more complex input.",
         "Natural language processing enables computers to understand human language."
     ]
-    results = get_embeddings(ids,sample_texts)
+    results = get_embeddings(texts=sample_texts,ids=ids)
     print(results)
