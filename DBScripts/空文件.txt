@@ -1,1 +1,2 @@
-
+steam_games_cleaned为处理后源数据
+steam_games_translated为中文数据
