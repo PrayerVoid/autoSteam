@@ -1,0 +1,132 @@
+/* 全局样式 */
+:root {
+    --primary-color: #171a21;
+    --secondary-color: #66c0f4;
+    --text-color: #c6d4df;
+    --background-color: #1b2838;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+}
+
+/* 导航栏样式 */
+.navbar {
+    background-color: var(--primary-color);
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-brand {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--secondary-color);
+}
+
+.nav-links a {
+    color: var(--text-color);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    margin: 0 0.5rem;
+}
+
+.nav-links a:hover, .nav-links a.active {
+    color: var(--secondary-color);
+}
+
+.language-switch a {
+    color: var(--text-color);
+    text-decoration: none;
+}
+
+.language-switch a:hover {
+    color: var(--secondary-color);
+}
+
+/* 搜索区域样式 */
+.search-section {
+    padding: 3rem 1rem;
+    text-align: center;
+    background: linear-gradient(rgba(23,26,33,0.8), rgba(27,40,56,0.8));
+}
+
+.search-container {
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    gap: 1rem;
+}
+
+.search-container input {
+    flex: 1;
+    padding: 0.8rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 4px;
+    background-color: rgba(255,255,255,0.1);
+    color: var(--text-color);
+}
+
+.search-container button {
+    padding: 0.8rem 2rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 4px;
+    background-color: var(--secondary-color);
+    color: var(--primary-color);
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.search-container button:hover {
+    background-color: #7fd6ff;
+}
+
+/* 游戏网格样式 */
+.recommendations {
+    padding: 2rem;
+}
+
+.games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.game-card {
+    background-color: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.3s;
+}
+
+.game-card:hover {
+    transform: translateY(-5px);
+}
+
+.game-card img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+}
+
+.game-info {
+    padding: 1rem;
+}
+
+.game-info h3 {
+    margin: 0;
+    color: var(--secondary-color);
+}
+
+.game-info p {
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}

@@ -1,0 +1,647 @@
+/* 搜索页面布局 */
+.search-results-page {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 2rem;
+    min-height: calc(100vh - 64px);
+    position: relative;
+}
+
+/* 搜索框容器 */
+.search-box-container {
+    grid-column: 1 / -1; /* 跨越所有列 */
+    margin-bottom: 1rem;
+}
+
+.search-box {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 1rem 1.5rem;
+    font-size: 1.1rem;
+    border: 2px solid var(--secondary-color);
+    border-radius: 8px;
+    background: var(--primary-color);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.search-box input:focus {
+    border-color: #1999ff;
+    background: rgba(255,255,255,0.15);
+    outline: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.search-box input::placeholder {
+    color: rgba(255,255,255,0.5);
+}
+
+/* 筛选框容器 */
+.search-container {
+    position: sticky;
+    top: 2rem;
+    height: calc(100vh - 4rem);
+    overflow-y: auto;
+    background: var(--primary-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    align-self: start;
+    width: 300px;
+    /* 添加以下属性使筛选框成为独立的滚动区域 */
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 自定义滚动条样式 */
+.search-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.search-container::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.1);
+}
+
+.search-container::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.2);
+    border-radius: 3px;
+}
+
+/* 筛选面板 */
+.filter-panel {
+    margin-top: 1.5rem;
+    /* 移除任何可能限制高度的属性 */
+    height: auto;
+    min-height: 0;
+}
+
+.filter-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.filter-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.filter-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.filter-title button {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.filter-title button:hover {
+    opacity: 1;
+}
+
+.filter-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    /* 移除最大高度限制，允许内容自然流动 */
+    max-height: none;
+    overflow-y: visible;
+}
+
+.filter-options::-webkit-scrollbar {
+    width: 4px;
+}
+
+.filter-options::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.05);
+}
+
+.filter-options::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+}
+
+.filter-option {
+    display: flex;
+    align-items: center;
+    margin: 5px 0;
+    cursor: pointer;
+}
+
+.filter-option input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.filter-option span {
+    flex: 1;
+}
+
+.filter-option .count {
+    color: #666;
+    font-size: 0.9em;
+    margin-left: 5px;
+}
+
+.price-range, .date-range {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.price-range input, .date-range input {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.1);
+    color: var(--text-color);
+    font-size: 1rem;
+}
+
+.price-range input:focus, .date-range input:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+}
+
+.show-more-btn {
+    background: none;
+    border: none;
+    color: var(--secondary-color);
+    cursor: pointer;
+    padding: 0.5rem 0;
+    text-align: left;
+    width: 100%;
+}
+
+.show-more-btn:hover {
+    text-decoration: underline;
+}
+
+/* 搜索结果区域 */
+.search-results {
+    flex: 1;
+    padding: 20px;
+    margin-top: 80px; /* 搜索框高度 + 间距 */
+    background: var(--primary-color);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.search-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.search-stats {
+    color: var(--text-color);
+    font-size: 1.1rem;
+}
+
+.sort-options select {
+    padding: 0.5rem 2rem 0.5rem 1rem;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.1);
+    color: var(--text-color);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2366c0f4' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.8rem center;
+}
+
+.sort-options select:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+}
+
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    padding: 1.5rem;
+}
+
+.game-card {
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+    color: inherit;
+    text-decoration: none;
+    display: block;
+    position: relative;
+    z-index: 1;
+}
+
+.game-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    text-decoration: none;
+    color: inherit;
+}
+
+.game-card:active {
+    transform: translateY(-2px);
+}
+
+.game-card * {
+    pointer-events: none;
+}
+
+.game-card .category-tag,
+.game-card .genre-tag {
+    pointer-events: auto;
+}
+
+.game-card img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+}
+
+.game-info {
+    padding: 1.2rem;
+}
+
+.game-info h3 {
+    margin: 0 0 0.8rem 0;
+    color: var(--secondary-color);
+    font-size: 1.2rem;
+    line-height: 1.4;
+}
+
+.game-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.8rem;
+    font-size: 0.9rem;
+}
+
+.game-date {
+    color: rgba(255,255,255,0.7);
+}
+
+.game-price {
+    color: var(--secondary-color);
+    font-weight: 500;
+}
+
+.game-stats {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.8rem;
+    font-size: 0.9rem;
+}
+
+.rating {
+    color: #66c0f4;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.rating::before {
+    content: "★";
+    color: #ffd700;
+}
+
+.peak-ccu {
+    color: rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.peak-ccu::before {
+    content: "👥";
+}
+
+.game-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.8rem;
+}
+
+.category-tag, .genre-tag {
+    background: rgba(102,192,244,0.1);
+    color: var(--secondary-color);
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+    white-space: normal;
+    word-break: break-word;
+    max-width: 100%;
+}
+
+.category-tag:hover, .genre-tag:hover {
+    background: rgba(102,192,244,0.2);
+}
+
+.game-platforms {
+    display: flex;
+    gap: 0.8rem;
+    font-size: 1.2rem;
+}
+
+.game-platforms span {
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.game-platforms span:hover {
+    opacity: 1;
+}
+
+/* 分页样式 */
+.pagination {
+    padding: 1.5rem;
+    display: flex;
+    justify-content: center;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.page-btn {
+    padding: 0.6rem 1.2rem;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.1);
+    color: var(--text-color);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.page-btn:hover {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.3);
+}
+
+.page-btn.active {
+    background: var(--secondary-color);
+    border-color: var(--secondary-color);
+    color: var(--primary-color);
+}
+
+.no-results, .error-message {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-color);
+    font-size: 1.1rem;
+}
+
+/* 响应式布局 */
+@media (max-width: 1200px) {
+    .search-container {
+        width: 250px;
+    }
+    
+    .search-results-page {
+        padding-right: 270px;
+    }
+    
+    .search-box-container {
+        right: 270px;
+    }
+}
+
+@media (max-width: 768px) {
+    .search-container {
+        position: static;
+        width: 100%;
+        height: auto;
+        box-shadow: none;
+        margin-bottom: 20px;
+    }
+    
+    .search-results-page {
+        flex-direction: column;
+        padding-right: 0;
+    }
+    
+    .search-box-container {
+        position: static;
+        right: 0;
+        margin-bottom: 20px;
+    }
+    
+    .search-results {
+        margin-top: 20px;
+    }
+}
+
+@media (max-width: 576px) {
+    .search-results-page {
+        padding: 1rem;
+    }
+
+    .results-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .search-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .sort-options select {
+        width: 100%;
+    }
+}
+
+/* 筛选子部分样式 */
+.filter-subsection {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.filter-subsection:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.filter-subtitle {
+    font-weight: 500;
+    margin-bottom: 1rem;
+    color: var(--text-color);
+    font-size: 0.95rem;
+}
+
+/* 日期筛选样式 */
+.date-range select {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.1);
+    color: var(--text-color);
+    font-size: 1rem;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2366c0f4' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.8rem center;
+}
+
+.date-range select:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+}
+
+#customDateRange {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-top: 0.8rem;
+}
+
+#customDateRange input[type="date"] {
+    flex: 1;
+    padding: 0.6rem;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.1);
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+#customDateRange input[type="date"]:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+}
+
+/* 平台选项样式 */
+.platform-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+/* 年龄评级选项样式 */
+.age-rating-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+}
+
+.age-rating-options .filter-option {
+    background: rgba(255,255,255,0.05);
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.age-rating-options .filter-option:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.age-rating-options .filter-option input[type="checkbox"] {
+    display: none;
+}
+
+.age-rating-options .filter-option input[type="checkbox"]:checked + span {
+    color: var(--secondary-color);
+    font-weight: 500;
+}
+
+.age-rating-options .filter-option span {
+    cursor: pointer;
+}
+
+/* 标签和类型筛选的显示更多按钮样式 */
+.show-more-btn {
+    width: 100%;
+    padding: 0.5rem;
+    margin-top: 0.8rem;
+    background: none;
+    border: none;
+    color: var(--secondary-color);
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+}
+
+.show-more-btn:hover {
+    color: #66c0f4;
+}
+
+/* 筛选标题操作按钮样式 */
+.filter-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.toggle-btn {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    padding: 0.2rem;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+}
+
+.toggle-btn:hover {
+    opacity: 1;
+    background: rgba(255,255,255,0.1);
+}
+
+.toggle-icon {
+    display: inline-block;
+    font-size: 0.8rem;
+    transition: transform 0.3s ease;
+}
+
+.toggle-btn.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+#additionalFilters {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+#additionalFilters.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin: 0;
+    padding: 0;
+}
+
