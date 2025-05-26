@@ -1,0 +1,120 @@
+/* 指南页面样式 */
+.guide-page {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.guide-page h1 {
+    text-align: center;
+    color: var(--secondary-color);
+    margin-bottom: 2rem;
+}
+
+/* 指南内容布局 */
+.guide-content {
+    display: grid;
+    gap: 2rem;
+}
+
+.guide-section {
+    background-color: rgba(23,26,33,0.8);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.guide-section h2 {
+    color: var(--secondary-color);
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 0.5rem;
+}
+
+/* 指南信息样式 */
+.guide-info {
+    color: var(--text-color);
+}
+
+.guide-info p {
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.guide-info ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.guide-info ul li {
+    position: relative;
+    padding-left: 1.5rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+.guide-info ul li::before {
+    content: "•";
+    color: var(--secondary-color);
+    position: absolute;
+    left: 0;
+}
+
+/* 示例框样式 */
+.example-box {
+    background-color: rgba(255,255,255,0.05);
+    border-radius: 6px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.example-box h4 {
+    color: var(--secondary-color);
+    margin: 0 0 0.5rem 0;
+}
+
+.example-box code {
+    display: block;
+    padding: 0.5rem;
+    background-color: rgba(0,0,0,0.2);
+    border-radius: 4px;
+    font-family: monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* 字段表格样式 */
+.field-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+.field-table th,
+.field-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.field-table th {
+    background-color: rgba(0,0,0,0.2);
+    color: var(--secondary-color);
+    font-weight: normal;
+}
+
+.field-table tr:hover {
+    background-color: rgba(255,255,255,0.05);
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+    .guide-page {
+        padding: 1rem;
+    }
+
+    .field-table {
+        display: block;
+        overflow-x: auto;
+    }
+}

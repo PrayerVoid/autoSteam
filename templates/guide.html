@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if lang == 'zh' %}说明指南{% else %}User Guide{% endif %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/guide.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="{{ url_for('home', lang=lang) }}">{% if lang == 'zh' %}Steam游戏搜索{% else %}Steam Game Search{% endif %}</a>
+        </div>
+        <div class="nav-links">
+            <a href="{{ url_for('home', lang=lang) }}">{% if lang == 'zh' %}首页{% else %}Home{% endif %}</a>
+            <a href="{{ url_for('category', lang=lang) }}">{% if lang == 'zh' %}游戏分类{% else %}Categories{% endif %}</a>
+            <a href="{{ url_for('guide', lang=lang) }}" class="active">{% if lang == 'zh' %}说明指南{% else %}Guide{% endif %}</a>
+            <a href="{{ url_for('ai_recommend', lang=lang) }}">{% if lang == 'zh' %}AI推荐{% else %}AI Recommend{% endif %}</a>
+        </div>
+        <div class="language-switch">
+            <a href="?lang=zh">中文</a> | <a href="?lang=en">English</a>
+        </div>
+    </nav>
+
+    <main class="guide-page">
+        <h1>{% if lang == 'zh' %}使用指南{% else %}User Guide{% endif %}</h1>
+
+        <div class="guide-content">
+            <section class="guide-section">
+                <h2>{% if lang == 'zh' %}基本搜索{% else %}Basic Search{% endif %}</h2>
+                <div class="guide-info">
+                    {% if lang == 'zh' %}
+                    <p>在首页的搜索框中，您可以：</p>
+                    <ul>
+                        <li>直接输入游戏名称进行搜索</li>
+                        <li>使用高级搜索格式：(#字段名)=值</li>
+                        <li>多个条件可以组合使用</li>
+                    </ul>
+                    <div class="example-box">
+                        <h4>示例：</h4>
+                        <code>(#支持语言)=英语(#发布日期)>2016-02-26(#名称)=星露谷物语</code>
+                    </div>
+                    {% else %}
+                    <p>In the homepage search box, you can:</p>
+                    <ul>
+                        <li>Enter game name directly</li>
+                        <li>Use advanced search format: (#field)=value</li>
+                        <li>Combine multiple conditions</li>
+                    </ul>
+                    <div class="example-box">
+                        <h4>Example:</h4>
+                        <code>(#language)=English(#release_date)>2016-02-26(#name)=Stardew Valley</code>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="guide-section">
+                <h2>{% if lang == 'zh' %}搜索字段说明{% else %}Search Fields Guide{% endif %}</h2>
+                <div class="guide-info">
+                    <table class="field-table">
+                        <thead>
+                            <tr>
+                                <th>{% if lang == 'zh' %}字段名{% else %}Field Name{% endif %}</th>
+                                <th>{% if lang == 'zh' %}说明{% else %}Description{% endif %}</th>
+                                <th>{% if lang == 'zh' %}示例{% else %}Example{% endif %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>{% if lang == 'zh' %}名称{% else %}name{% endif %}</td>
+                                <td>{% if lang == 'zh' %}游戏名称{% else %}Game name{% endif %}</td>
+                                <td>(#名称)=赛博朋克</td>
+                            </tr>
+                            <tr>
+                                <td>{% if lang == 'zh' %}发布日期{% else %}release_date{% endif %}</td>
+                                <td>{% if lang == 'zh' %}发布日期{% else %}Release date{% endif %}</td>
+                                <td>(#发布日期)>2020-01-01</td>
+                            </tr>
+                            <tr>
+                                <td>{% if lang == 'zh' %}价格{% else %}price{% endif %}</td>
+                                <td>{% if lang == 'zh' %}游戏价格{% else %}Game price{% endif %}</td>
+                                <td>(#价格)<100</td>
+                            </tr>
+                            <!-- 更多字段... -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="guide-section">
+                <h2>{% if lang == 'zh' %}筛选和排序{% else %}Filters and Sorting{% endif %}</h2>
+                <div class="guide-info">
+                    {% if lang == 'zh' %}
+                    <p>在搜索结果页面，您可以：</p>
+                    <ul>
+                        <li>使用左侧筛选面板精确筛选结果</li>
+                        <li>按价格、发布日期、评分等条件排序</li>
+                        <li>使用标签和类别快速过滤</li>
+                    </ul>
+                    {% else %}
+                    <p>On the search results page, you can:</p>
+                    <ul>
+                        <li>Use the left filter panel for precise filtering</li>
+                        <li>Sort by price, release date, rating, etc.</li>
+                        <li>Quick filter using tags and categories</li>
+                    </ul>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+    </main>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if lang == 'zh' %}AI推荐{% else %}AI Recommendations{% endif %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ai_recommend.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="{{ url_for('home', lang=lang) }}">{% if lang == 'zh' %}Steam游戏搜索{% else %}Steam Game Search{% endif %}</a>
+        </div>
+        <div class="nav-links">
+            <a href="{{ url_for('home', lang=lang) }}">{% if lang == 'zh' %}首页{% else %}Home{% endif %}</a>
+            <a href="{{ url_for('category', lang=lang) }}">{% if lang == 'zh' %}游戏分类{% else %}Categories{% endif %}</a>
+            <a href="{{ url_for('guide', lang=lang) }}">{% if lang == 'zh' %}说明指南{% else %}Guide{% endif %}</a>
+            <a href="{{ url_for('ai_recommend', lang=lang) }}" class="active">{% if lang == 'zh' %}AI推荐{% else %}AI Recommend{% endif %}</a>
+        </div>
+        <div class="language-switch">
+            <a href="?lang=zh">中文</a> | <a href="?lang=en">English</a>
+        </div>
+    </nav>
+
+    <main class="ai-recommend-page">
+        <div class="ai-chat-container">
+            <div class="chat-header">
+                <h1>{% if lang == 'zh' %}AI游戏助手{% else %}AI Game Assistant{% endif %}</h1>
+                <div class="mode-switch">
+                    <button class="mode-btn active" data-mode="chat">
+                        {% if lang == 'zh' %}对话模式{% else %}Chat Mode{% endif %}
+                    </button>
+                    <button class="mode-btn" data-mode="search">
+                        {% if lang == 'zh' %}搜索模式{% else %}Search Mode{% endif %}
+                    </button>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <!-- 欢迎消息 -->
+                <div class="message ai-message">
+                    {% if lang == 'zh' %}
+                    <p>你好！我是你的AI游戏推荐助手。你可以：</p>
+                    <ul>
+                        <li>告诉我你喜欢什么类型的游戏</li>
+                        <li>询问特定游戏的详细信息</li>
+                        <li>让我帮你找到类似某个游戏的其他游戏</li>
+                        <li>切换到搜索模式直接生成搜索表达式</li>
+                    </ul>
+                    {% else %}
+                    <p>Hello! I'm your AI game recommendation assistant. You can:</p>
+                    <ul>
+                        <li>Tell me what types of games you like</li>
+                        <li>Ask about specific game details</li>
+                        <li>Let me find similar games</li>
+                        <li>Switch to search mode to generate search expressions</li>
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="chat-input-container">
+                <textarea id="userInput" placeholder="{% if lang == 'zh' %}输入你的问题...{% else %}Type your question...{% endif %}" rows="2"></textarea>
+                <button id="sendMessage">
+                    {% if lang == 'zh' %}发送{% else %}Send{% endif %}
+                </button>
+            </div>
+        </div>
+
+        <div class="recommendation-results" id="recommendationResults">
+            <!-- 推荐结果将在这里显示 -->
+        </div>
+    </main>
+
+    <script>
+        window.LANG = '{{ lang }}';  // 传递语言设置给JavaScript
+    </script>
+    <script src="{{ url_for('static', filename='js/ai_recommend.js') }}"></script>
+</body>
+</html>

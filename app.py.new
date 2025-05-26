@@ -1,0 +1,312 @@
+from flask import Flask, render_template, jsonify, request
+from datetime import datetime
+import jieba
+from mock_data import DEMO_GAMES
+
+app = Flask(__name__)
+
+# 设置默认支持的语言
+SUPPORTED_LANGUAGES = ['zh', 'en']
+
+def search_games(query='', filters=None, sort='relevance', page=1, page_size=20):
+    """搜索游戏的模拟函数"""
+    filtered_games = DEMO_GAMES.copy()
+      # 如果有搜索关键词，进行关键词过滤
+    if query:
+        # 移除特殊查询格式（如果有的话）
+        if query.startswith('(#') and ')=' in query:
+            query = query.split(')=', 1)[1]
+            
+        query_lower = query.lower()
+        # 使用更宽松的匹配逻辑
+        filtered_games = [g for g in filtered_games if 
+            any([
+                query_lower in g['名称'].lower(),
+                any(query_lower in category.lower() for category in g['游戏类别']),
+                any(query_lower in genre.lower() for genre in g['玩法类型']),
+                any(query_lower in tag.lower() for tag in g['游戏标签'])
+            ])
+        ]
+    
+    # 应用过滤条件
+    if filters:
+        if 'minPrice' in filters:
+            filtered_games = [g for g in filtered_games if g['价格'] >= filters['minPrice']]
+        if 'maxPrice' in filters:
+            filtered_games = [g for g in filtered_games if g['价格'] <= filters['maxPrice']]
+        if 'fromDate' in filters:
+            from_date = datetime.strptime(filters['fromDate'], '%Y-%m-%d')
+            filtered_games = [g for g in filtered_games if datetime.strptime(g['发布日期'], '%Y-%m-%d') >= from_date]
+        if 'toDate' in filters:
+            to_date = datetime.strptime(filters['toDate'], '%Y-%m-%d')
+            filtered_games = [g for g in filtered_games if datetime.strptime(g['发布日期'], '%Y-%m-%d') <= to_date]
+        if 'platforms' in filters:
+            for platform in filters['platforms']:
+                filtered_games = [g for g in filtered_games if 
+                    (platform.lower() == 'windows' and g['支持Windows']) or
+                    (platform.lower() == 'mac' and g['支持Mac']) or
+                    (platform.lower() == 'linux' and g['支持Linux'])
+                ]
+        if 'genres' in filters:
+            filtered_games = [g for g in filtered_games if 
+                any(genre.lower() in [x.lower() for x in g['玩法类型']] for genre in filters['genres'])
+            ]
+        if 'tags' in filters:
+            filtered_games = [g for g in filtered_games if 
+                any(tag.lower() in [x.lower() for x in g['游戏标签']] for tag in filters['tags'])
+            ]
+
+    # 应用排序
+    if sort == 'price_asc':
+        filtered_games.sort(key=lambda x: x['价格'])
+    elif sort == 'price_desc':
+        filtered_games.sort(key=lambda x: x['价格'], reverse=True)
+    elif sort == 'rating':
+        filtered_games.sort(key=lambda x: x['好评率'], reverse=True)
+    elif sort == 'date':
+        filtered_games.sort(key=lambda x: x['发布日期'], reverse=True)
+    elif sort == 'popularity':
+        filtered_games.sort(key=lambda x: x['最高同时在线人数'], reverse=True)
+    
+    # 分页
+    total = len(filtered_games)
+    start_idx = (page - 1) * page_size
+    end_idx = min(start_idx + page_size, total)
+    paginated_games = filtered_games[start_idx:end_idx]
+    
+    return {
+        'games': paginated_games,
+        'total': total
+    }
+
+@app.route('/')
+def home():
+    lang = request.args.get('lang', 'zh')  # 默认使用中文
+    return render_template('index.html', lang=lang)
+
+@app.route('/category')
+def category():
+    lang = request.args.get('lang', 'zh')
+    return render_template('category.html', lang=lang)
+
+@app.route('/guide')
+def guide():
+    lang = request.args.get('lang', 'zh')
+    return render_template('guide.html', lang=lang)
+
+@app.route('/ai_recommend')
+@app.route('/<lang>/ai_recommend')
+def ai_recommend(lang='zh'):
+    return render_template('ai_recommend.html', lang=lang)
+
+@app.route('/search')
+def search():
+    lang = request.args.get('lang', 'zh')
+    query = request.args.get('q', '')
+    return render_template('search.html', lang=lang, query=query)
+
+@app.route('/api/search', methods=['POST'])
+def api_search():
+    data = request.json
+    query = data.get('query', '')
+    filters = data.get('filters', {})
+    sort = data.get('sort', 'relevance')
+    page = data.get('page', 1)
+    page_size = data.get('page_size', 20)
+    
+    try:
+        result = search_games(query, filters, sort, page, page_size)
+        
+        return jsonify({
+            'status': 'success',
+            'data': result['games'],
+            'total': result['total'],
+            'page': page,
+            'pageSize': page_size
+        })
+        
+    except Exception as e:
+        print(f"Search error: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/popular_games', methods=['POST'])
+def popular_games():
+    try:
+        # 获取好评率高且评论数量足够多的游戏
+        min_reviews = 50000  # 设置最低评论数门槛
+        popular_games = [g for g in DEMO_GAMES if g['评论总数'] >= min_reviews]
+        games = sorted(popular_games, 
+                      key=lambda x: (x['好评率'], x['最高同时在线人数']), 
+                      reverse=True)[:10]
+        
+        return jsonify({
+            'status': 'success',
+            'games': [{
+                'appId': game['游戏应用ID'],
+                'name': game['名称'],
+                'price': game['价格'],
+                'headerImage': game['header_image'],
+                'posRatio': game['好评率'],
+                'shortDescription': game['媒体评价']
+            } for game in games]
+        })
+        
+    except Exception as e:
+        print(f"Error fetching popular games: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/personalized_games', methods=['POST'])
+def personalized_games():
+    try:
+        # 获取最近发布的高评分游戏
+        min_rating = 0.7  # 设置最低好评率门槛
+        recent_games = sorted([g for g in DEMO_GAMES if g['好评率'] >= min_rating],
+                            key=lambda x: x['发布日期'],
+                            reverse=True)[:10]
+        
+        return jsonify({
+            'status': 'success',
+            'games': [{
+                'appId': game['游戏应用ID'],
+                'name': game['名称'],
+                'price': game['价格'],
+                'headerImage': game['header_image'],
+                'posRatio': game['好评率'],
+                'shortDescription': game['媒体评价']
+            } for game in recent_games]
+        })
+        
+    except Exception as e:
+        print(f"Error fetching personalized games: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/categories', methods=['POST'])
+def get_categories():
+    try:
+        # 收集所有类别、标签和发布年份
+        genres = {}  # 使用字典来统计数量
+        tags = {}
+        years = {}
+        price_ranges = {
+            'free': 0,
+            'under_10': 0,
+            '10_to_30': 0,
+            '30_to_60': 0,
+            'above_60': 0
+        }
+        
+        for game in DEMO_GAMES:
+            # 统计游戏类型
+            for genre in game['玩法类型']:
+                genres[genre] = genres.get(genre, 0) + 1
+            
+            # 统计标签
+            for tag in game['游戏标签']:
+                tags[tag] = tags.get(tag, 0) + 1
+            
+            # 统计发布年份
+            year = datetime.strptime(game['发布日期'], '%Y-%m-%d').year
+            years[year] = years.get(year, 0) + 1
+            
+            # 统计价格区间
+            price = game['价格']
+            if price == 0:
+                price_ranges['free'] += 1
+            elif price < 10:
+                price_ranges['under_10'] += 1
+            elif price < 30:
+                price_ranges['10_to_30'] += 1
+            elif price < 60:
+                price_ranges['30_to_60'] += 1
+            else:
+                price_ranges['above_60'] += 1
+
+        # 返回分类数据
+        return jsonify({
+            'status': 'success',
+            'gameTypes': [{'id': genre, 'name': genre, 'count': count} 
+                        for genre, count in genres.items()],
+            'tags': [{'id': tag, 'name': tag, 'count': count} 
+                    for tag, count in tags.items()],
+            'years': [{'year': year, 'count': count} 
+                    for year, count in sorted(years.items())],
+            'priceRanges': [
+                {'id': 'free', 'name': '免费游戏', 'count': price_ranges['free']},
+                {'id': 'under_10', 'name': '¥10以下', 'count': price_ranges['under_10']},
+                {'id': '10_to_30', 'name': '¥10-30', 'count': price_ranges['10_to_30']},
+                {'id': '30_to_60', 'name': '¥30-60', 'count': price_ranges['30_to_60']},
+                {'id': 'above_60', 'name': '¥60以上', 'count': price_ranges['above_60']}
+            ]
+        })
+        
+    except Exception as e:
+        print(f"Error fetching categories: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/ai_chat', methods=['POST'])
+def ai_chat():
+    data = request.json
+    message = data.get('message', '')
+    mode = data.get('mode', 'chat')
+    lang = data.get('lang', 'zh')
+    
+    try:
+        if mode == 'chat':
+            # 模拟AI聊天推荐
+            keywords = jieba.lcut(message) if lang == 'zh' else message.lower().split()
+            recommendations = []
+            
+            for game in DEMO_GAMES:
+                # 简单的关键词匹配
+                score = 0
+                for keyword in keywords:
+                    if keyword in game['名称'].lower() or \
+                       keyword in ' '.join(game['游戏标签']).lower() or \
+                       keyword in ' '.join(game['玩法类型']).lower():
+                        score += 1
+                if score > 0:
+                    recommendations.append({
+                        'appId': game['游戏应用ID'],
+                        'name': game['名称'],
+                        'price': game['价格'],
+                        'headerImage': game['header_image'],
+                        'posRatio': game['好评率'],
+                        'shortDescription': game['媒体评价']
+                    })
+            
+            if not recommendations:
+                # 如果没有匹配的游戏，返回热门游戏
+                recommendations = sorted(
+                    [{
+                        'appId': game['游戏应用ID'],
+                        'name': game['名称'],
+                        'price': game['价格'],
+                        'headerImage': game['header_image'],
+                        'posRatio': game['好评率'],
+                        'shortDescription': game['媒体评价']
+                    } for game in DEMO_GAMES],
+                    key=lambda x: x['posRatio'],
+                    reverse=True
+                )[:5]
+            
+            reply = "根据您的描述，我为您推荐以下游戏：" if lang == 'zh' else "Based on your description, I recommend these games:"
+            
+            return jsonify({
+                'status': 'success',
+                'reply': reply,
+                'recommendations': recommendations[:5]
+            })
+        else:
+            # 生成搜索表达式
+            search_expr = ' '.join(jieba.lcut(message)) if lang == 'zh' else message
+            return jsonify({
+                'status': 'success',
+                'searchExpression': search_expr
+            })
+            
+    except Exception as e:
+        print(f"Error in AI chat: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)

@@ -1,0 +1,253 @@
+.game-detail-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.game-header {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 30px;
+    margin-bottom: 40px;
+    background: #1b2838;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.game-header-image {
+    width: 100%;
+    height: 400px;
+    overflow: hidden;
+    border-radius: 4px;
+}
+
+.game-header-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.game-header-info {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.game-title {
+    font-size: 2.5em;
+    color: #fff;
+    margin: 0;
+}
+
+.game-meta {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.game-price {
+    font-size: 1.5em;
+    color: #a4d007;
+    font-weight: bold;
+}
+
+.game-rating {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rating-value {
+    color: #66c0f4;
+    font-weight: bold;
+}
+
+.review-count {
+    color: #66c0f4;
+    font-size: 0.9em;
+}
+
+.game-release-date {
+    color: #66c0f4;
+}
+
+.game-platforms {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.platform-icon {
+    font-size: 1.5em;
+    cursor: help;
+}
+
+.game-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.category-tag, .genre-tag {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.category-tag {
+    background: #66c0f4;
+    color: #fff;
+}
+
+.genre-tag {
+    background: #2a475e;
+    color: #fff;
+}
+
+.game-content {
+    display: grid;
+    gap: 30px;
+}
+
+.game-description, .game-media-reviews, .game-languages, 
+.game-requirements, .game-tags-section, .game-stats {
+    background: #1b2838;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.game-content h2 {
+    color: #66c0f4;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.5em;
+}
+
+.game-content p {
+    color: #c7d5e0;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.language-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.language-list li {
+    color: #c7d5e0;
+    padding: 5px 10px;
+    background: #2a475e;
+    border-radius: 4px;
+}
+
+.requirements-section {
+    margin-bottom: 20px;
+}
+
+.requirements-section h3 {
+    color: #66c0f4;
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.requirements-section ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.requirements-section li {
+    color: #c7d5e0;
+    padding: 5px 0;
+    border-bottom: 1px solid #2a475e;
+}
+
+.requirements-section li:last-child {
+    border-bottom: none;
+}
+
+.requirements-section strong {
+    color: #66c0f4;
+    margin-right: 10px;
+}
+
+.tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tag {
+    padding: 4px 8px;
+    background: #2a475e;
+    color: #c7d5e0;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.stat-label {
+    color: #66c0f4;
+    font-weight: bold;
+}
+
+.stat-value {
+    color: #c7d5e0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .game-header {
+        grid-template-columns: 1fr;
+    }
+
+    .game-header-image {
+        height: 300px;
+    }
+
+    .game-title {
+        font-size: 2em;
+    }
+
+    .game-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .language-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .game-detail-container {
+        padding: 10px;
+    }
+
+    .game-header {
+        padding: 15px;
+    }
+
+    .game-header-image {
+        height: 200px;
+    }
+
+    .game-title {
+        font-size: 1.5em;
+    }
+} 

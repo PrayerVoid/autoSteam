@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if lang == 'zh' %}游戏搜索{% else %}Game Search{% endif %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/search.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="{{ url_for('home', lang=lang) }}">{% if lang == 'zh' %}Steam游戏搜索{% else %}Steam Game Search{% endif %}</a>
+        </div>
+        <div class="nav-links">
+            <a href="{{ url_for('home', lang=lang) }}">{% if lang == 'zh' %}首页{% else %}Home{% endif %}</a>
+            <a href="{{ url_for('category', lang=lang) }}">{% if lang == 'zh' %}游戏分类{% else %}Categories{% endif %}</a>
+            <a href="{{ url_for('guide', lang=lang) }}">{% if lang == 'zh' %}说明指南{% else %}Guide{% endif %}</a>
+            <a href="{{ url_for('ai_recommend', lang=lang) }}">{% if lang == 'zh' %}AI推荐{% else %}AI Recommend{% endif %}</a>
+        </div>
+        <div class="language-switch">
+            <a href="{{ request.path }}{% if request.query_string %}?{{ request.query_string.decode('utf-8').replace('lang=' + lang, 'lang=zh') }}{% else %}?lang=zh{% endif %}">中文</a> | 
+            <a href="{{ request.path }}{% if request.query_string %}?{{ request.query_string.decode('utf-8').replace('lang=' + lang, 'lang=en') }}{% else %}?lang=en{% endif %}">English</a>
+        </div>
+    </nav>
+
+    <main class="search-results-page">
+        <!-- 搜索框移到筛选框外部 -->
+        <div class="search-box-container">
+            <div class="search-box">
+                <input type="text" id="searchInput" 
+                       placeholder="{% if lang == 'zh' %}输入搜索表达式，例如：(#名称)=星露谷物语(#价格)<100{% else %}Enter search expression, e.g.: (#name)=Stardew Valley(#price)<100{% endif %}" 
+                       value="{{ query }}">
+                <button onclick="performSearch()">{% if lang == 'zh' %}搜索{% else %}Search{% endif %}</button>
+                <a href="{{ url_for('advanced_search', lang=lang) }}" class="advanced-search-link">
+                    {% if lang == 'zh' %}高级检索{% else %}Advanced Search{% endif %}
+                </a>
+            </div>
+        </div>
+
+        <aside class="search-container">
+            <div class="filter-panel">
+                <!-- 游戏类型筛选 -->
+                <div class="filter-section">
+                    <div class="filter-title">
+                        <span>{% if lang == 'zh' %}游戏类型{% else %}Game Types{% endif %}</span>
+                        <button onclick="resetTypeFilter()">{% if lang == 'zh' %}重置{% else %}Reset{% endif %}</button>
+                    </div>
+                    <div class="filter-options" id="gameTypes">
+                        <div class="visible-categories"></div>
+                        <div class="more-categories" style="display: none;"></div>
+                        <button class="show-more-btn" onclick="toggleMoreCategories()">
+                            {% if lang == 'zh' %}显示更多{% else %}Show More{% endif %}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 游戏标签筛选 -->
+                <div class="filter-section">
+                    <div class="filter-title">
+                        <span>{% if lang == 'zh' %}游戏标签{% else %}Game Tags{% endif %}</span>
+                        <button onclick="resetTagFilter()">{% if lang == 'zh' %}重置{% else %}Reset{% endif %}</button>
+                    </div>
+                    <div class="filter-options" id="gameTags">
+                        <div class="visible-tags"></div>
+                        <div class="more-tags" style="display: none;"></div>
+                        <button class="show-more-btn" onclick="toggleMoreTags()">
+                            {% if lang == 'zh' %}显示更多{% else %}Show More{% endif %}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 额外筛选选项 -->
+                <div class="filter-section">
+                    <div class="filter-title">
+                        <span>{% if lang == 'zh' %}额外筛选{% else %}Additional Filters{% endif %}</span>
+                        <div class="filter-actions">
+                            <button onclick="toggleAdditionalFilters()" class="toggle-btn collapsed">
+                                <span class="toggle-icon">▶</span>
+                            </button>
+                            <button onclick="resetAdditionalFilters()">{% if lang == 'zh' %}重置{% else %}Reset{% endif %}</button>
+                        </div>
+                    </div>
+                    <div class="filter-options collapsed" id="additionalFilters">
+                        <!-- 发布年份筛选 -->
+                        <div class="filter-subsection">
+                            <div class="filter-subtitle release-year-title" title="{% if lang == 'zh' %}选择某一年将显示该年及以后的所有游戏{% else %}Selecting a year will show all games from that year onwards{% endif %}">
+                                {% if lang == 'zh' %}发布年份{% else %}Release Year{% endif %}
+                                <span class="info-icon">ℹ️</span>
+                            </div>
+                            <div class="date-range">
+                                <select id="releaseYearFilter" onchange="performSearch()">
+                                    <option value="">{% if lang == 'zh' %}全部年份{% else %}All Years{% endif %}</option>
+                                    <option value="2024">2024</option>
+                                    <option value="2023">2023</option>
+                                    <option value="2022">2022</option>
+                                    <option value="2021">2021</option>
+                                    <option value="2020">2020</option>
+                                    <option value="2019">2019</option>
+                                    <option value="2018">2018</option>
+                                    <option value="2017">2017</option>
+                                    <option value="2016">2016</option>
+                                    <option value="2015">2015</option>
+                                    <option value="2014">2014</option>
+                                    <option value="2013">2013</option>
+                                    <option value="2012">2012</option>
+                                    <option value="2011">2011</option>
+                                    <option value="2010">2010</option>
+                                    <option value="2009">2009</option>
+                                    <option value="2008">2008</option>
+                                    <option value="2007">2007</option>
+                                    <option value="2006">2006</option>
+                                    <option value="2005">2005</option>
+                                    <option value="2004">2004</option>
+                                    <option value="2003">2003</option>
+                                    <option value="2002">2002</option>
+                                    <option value="2001">2001</option>
+                                    <option value="2000">2000</option>
+                                    <option value="before_2000">{% if lang == 'zh' %}2000年以前{% else %}Before 2000{% endif %}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 支持平台筛选 -->
+                        <div class="filter-subsection">
+                            <div class="filter-subtitle">
+                                {% if lang == 'zh' %}支持平台{% else %}Platforms{% endif %}
+                            </div>
+                            <div class="platform-options">
+                                <label class="filter-option">
+                                    <input type="checkbox" name="platform" value="windows" onchange="performSearch()">
+                                    <span>Windows</span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="platform" value="mac" onchange="performSearch()">
+                                    <span>Mac</span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="platform" value="linux" onchange="performSearch()">
+                                    <span>Linux</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 适用年龄筛选 -->
+                        <div class="filter-subsection">
+                            <div class="filter-subtitle">
+                                {% if lang == 'zh' %}适用年龄{% else %}Age Rating{% endif %}
+                            </div>
+                            <div class="age-rating-options">
+                                <label class="filter-option">
+                                    <input type="checkbox" name="ageRating" value="3" onchange="performSearch()">
+                                    <span>3+</span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="ageRating" value="7" onchange="performSearch()">
+                                    <span>7+</span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="ageRating" value="12" onchange="performSearch()">
+                                    <span>12+</span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="ageRating" value="16" onchange="performSearch()">
+                                    <span>16+</span>
+                                </label>
+                                <label class="filter-option">
+                                    <input type="checkbox" name="ageRating" value="18" onchange="performSearch()">
+                                    <span>18+</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <div class="search-results">
+            <div class="search-header">
+                <div class="search-stats">
+                    {% if lang == 'zh' %}
+                    找到 <span id="resultCount">0</span> 个结果
+                    {% else %}
+                    Found <span id="resultCount">0</span> results
+                    {% endif %}
+                </div>
+                <div class="sort-options">
+                    <select id="sortBy" onchange="performSearch()">
+                        <option value="relevance">{% if lang == 'zh' %}相关度{% else %}Relevance{% endif %}</option>
+                        <option value="price_asc">{% if lang == 'zh' %}价格从低到高{% else %}Price: Low to High{% endif %}</option>
+                        <option value="price_desc">{% if lang == 'zh' %}价格从高到低{% else %}Price: High to Low{% endif %}</option>
+                        <option value="date_asc">{% if lang == 'zh' %}发布日期从早到晚{% else %}Release Date: Old to New{% endif %}</option>
+                        <option value="date_desc">{% if lang == 'zh' %}发布日期从晚到早{% else %}Release Date: New to Old{% endif %}</option>
+                        <option value="rating">{% if lang == 'zh' %}用户评分{% else %}User Rating{% endif %}</option>
+                        <option value="popularity">{% if lang == 'zh' %}热度{% else %}Popularity{% endif %}</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="searchResults" class="results-grid">
+                <!-- 将由JavaScript动态填充 -->
+            </div>
+
+            <div id="pagination" class="pagination">
+                <!-- 将由JavaScript动态填充 -->
+            </div>
+        </div>
+    </main>
+
+    <style>
+        /* 添加游戏卡片的样式 */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .game-card {
+            background: #1b2838;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: transform 0.2s;
+            text-decoration: none;
+            color: #c7d5e0;
+        }
+
+        .game-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .game-card img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .game-info {
+            padding: 15px;
+        }
+
+        .game-info h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #ffffff;
+        }
+
+        .game-meta {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .game-stats {
+            font-size: 13px;
+            color: #8f98a0;
+            margin-bottom: 10px;
+        }
+
+        .game-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .category-tag, .genre-tag {
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .category-tag {
+            background: #2a475e;
+            color: #66c0f4;
+        }
+
+        .genre-tag {
+            background: #3d4450;
+            color: #c7d5e0;
+        }
+
+        .game-platforms {
+            display: flex;
+            gap: 8px;
+            font-size: 16px;
+        }
+    </style>
+
+    <script>
+        const lang = '{{ lang }}';
+        const pageSize = 20;
+        let currentPage = {{ page }};
+        let currentFilters = {{ filters|tojson|safe }};
+        let selectedFilters = {{ selected_filters|tojson|safe }};  // 添加已选择的筛选条件
+        let currentSort = '{{ sort }}';
+        let currentQuery = '{{ query }}';
+        let currentMode = '{{ mode }}';
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置搜索框的值
+            document.getElementById('searchInput').value = currentQuery;
+            
+            // 设置排序选项
+            document.getElementById('sortBy').value = currentSort;
+            
+            // 先获取所有筛选选项
+            updateFilterCounts().then(() => {
+                // 在获取到筛选选项后，再设置选中状态
+                if (selectedFilters.types) {
+                    console.log("Debug - Setting selected types:", selectedFilters.types);
+                    selectedFilters.types.forEach(type => {
+                    const checkbox = document.querySelector(`#gameTypes input[value="${type}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        console.log("Debug - Checked type:", type);
+                    } else {
+                        console.log("Debug - Type checkbox not found:", type);
+                    }
+                });
+            }
+            
+                if (selectedFilters.tags) {
+                    console.log("Debug - Setting selected tags:", selectedFilters.tags);
+                    selectedFilters.tags.forEach(tag => {
+                        const checkbox = document.querySelector(`#gameTags input[value="${tag}"]`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                            console.log("Debug - Checked tag:", tag);
+                        } else {
+                            console.log("Debug - Tag checkbox not found:", tag);
+                        }
+                    });
+                }
+                
+                if (selectedFilters.platforms) {
+                    selectedFilters.platforms.forEach(platform => {
+                    const checkbox = document.querySelector(`input[name="platform"][value="${platform}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+            }
+            
+                if (selectedFilters.languages) {
+                    selectedFilters.languages.forEach(lang => {
+                    const checkbox = document.querySelector(`input[name="language"][value="${lang}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+            }
+            
+                // 在所有筛选选项设置完成后，再执行搜索
+            if (currentQuery || Object.keys(currentFilters).length > 0) {
+                performSearch();
+            }
+            });
+        });
+
+        // 获取所有筛选条件
+        function getFilters() {
+            const filters = {};
+            
+            // 获取游戏类型筛选 - 使用AND逻辑
+            const selectedTypes = Array.from(document.querySelectorAll('#gameTypes input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+            if (selectedTypes.length > 0) {
+                filters.types = selectedTypes;
+                console.log("Debug - Selected types:", selectedTypes);
+            }
+            
+            // 获取游戏标签筛选 - 使用AND逻辑
+            const selectedTags = Array.from(document.querySelectorAll('#gameTags input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+            if (selectedTags.length > 0) {
+                filters.tags = selectedTags;
+            }
+            
+            // 获取平台筛选 - 使用AND逻辑
+            const selectedPlatforms = Array.from(document.querySelectorAll('input[name="platform"]:checked'))
+                .map(cb => cb.value);
+            if (selectedPlatforms.length > 0) {
+                filters.platforms = selectedPlatforms;
+            }
+            
+            // 获取语言筛选 - 使用AND逻辑
+            const selectedLanguages = Array.from(document.querySelectorAll('input[name="language"]:checked'))
+                .map(cb => cb.value);
+            if (selectedLanguages.length > 0) {
+                filters.languages = selectedLanguages;
+            }
+
+            // 获取发布年份筛选
+            const releaseYear = document.getElementById('releaseYearFilter').value;
+            if (releaseYear) {
+                if (releaseYear === 'before_2000') {
+                    filters.fromDate = '1900-01-01';
+                    filters.toDate = '1999-12-31';
+                } else {
+                    filters.fromDate = `${releaseYear}-01-01`;
+                }
+            }
+            
+            return filters;
+        }
+
+        // 执行搜索
+        async function performSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            const filters = getFilters();
+            const sort = document.getElementById('sortBy').value;
+            
+            // 重置所有"显示更多/更少"按钮的状态
+            resetShowMoreButtons();
+            
+            try {
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        filters: filters,
+                        sort: sort,
+                        page: currentPage,
+                        page_size: pageSize,
+                        mode: currentMode
+                    })
+                });
+
+                if (!response.ok) throw new Error('Search failed');
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    displayResults(data.data);
+                    updatePagination(data.total);
+                    document.getElementById('resultCount').textContent = data.total;
+                    
+                    // 更新筛选选项的计数
+                    await updateFilterCounts();
+                    
+                    // 更新URL，但不刷新页面
+                    const newUrl = new URL(window.location.href);
+                    
+                    // 清除所有现有的搜索参数
+                    Array.from(newUrl.searchParams.keys()).forEach(key => {
+                        if (key !== 'lang') {  // 保留语言参数
+                            newUrl.searchParams.delete(key);
+                        }
+                    });
+                    
+                    // 添加基本参数
+                    if (query) newUrl.searchParams.set('q', query);
+                    if (currentMode) newUrl.searchParams.set('mode', currentMode);
+                    if (sort) newUrl.searchParams.set('sort', sort);
+                    
+                    // 添加筛选参数，使用AND逻辑
+                    Object.entries(filters).forEach(([key, value]) => {
+                        if (value) {
+                            if (Array.isArray(value)) {
+                                // 使用Set去重，并将数组作为单个参数值添加
+                                const uniqueValues = [...new Set(value)];
+                                newUrl.searchParams.set(key, uniqueValues.join(','));
+                            } else {
+                                newUrl.searchParams.set(key, value);
+                            }
+                        }
+                    });
+                    
+                    window.history.pushState({}, '', newUrl);
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                document.getElementById('searchResults').innerHTML = `
+                    <div class="error-message">
+                        ${lang === 'zh' ? '搜索出错，请稍后重试' : 'Search error, please try again later'}
+                    </div>
+                `;
+            }
+        }
+
+        // 重置所有"显示更多/更少"按钮的状态
+        function resetShowMoreButtons() {
+            // 重置游戏类型
+            const moreCategories = document.querySelector('#gameTypes .more-categories');
+            const showMoreCategoriesBtn = document.querySelector('#gameTypes .show-more-btn');
+            if (moreCategories && showMoreCategoriesBtn) {
+                moreCategories.style.display = 'none';
+                showMoreCategoriesBtn.textContent = lang === 'zh' ? '显示更多' : 'Show More';
+            }
+            
+            // 重置游戏标签
+            const moreTags = document.querySelector('#gameTags .more-tags');
+            const showMoreTagsBtn = document.querySelector('#gameTags .show-more-btn');
+            if (moreTags && showMoreTagsBtn) {
+                moreTags.style.display = 'none';
+                showMoreTagsBtn.textContent = lang === 'zh' ? '显示更多' : 'Show More';
+            }
+        }
+
+        // 重置游戏类型筛选
+        function resetTypeFilter() {
+            document.querySelectorAll('#gameTypes input[type="checkbox"]').forEach(cb => cb.checked = false);
+            performSearch();
+        }
+
+        // 重置游戏标签筛选
+        function resetTagFilter() {
+            document.querySelectorAll('#gameTags input[type="checkbox"]').forEach(cb => cb.checked = false);
+            performSearch();
+        }
+
+        // 重置额外筛选
+        function resetAdditionalFilters() {
+            // 重置发布年份
+            document.getElementById('releaseYearFilter').value = '';
+            
+            // 重置平台选择
+            document.querySelectorAll('input[name="platform"]').forEach(cb => cb.checked = false);
+            
+            // 重置年龄评级
+            document.querySelectorAll('input[name="ageRating"]').forEach(cb => cb.checked = false);
+            
+            performSearch();
+        }
+
+        // 切换显示更多分类
+        function toggleMoreCategories() {
+            const moreCategories = document.querySelector('#gameTypes .more-categories');
+            const showMoreBtn = document.querySelector('#gameTypes .show-more-btn');
+            if (moreCategories && showMoreBtn) {
+                if (moreCategories.style.display === 'none') {
+                    moreCategories.style.display = 'block';
+                    showMoreBtn.textContent = lang === 'zh' ? '显示更少' : 'Show Less';
+                } else {
+                    moreCategories.style.display = 'none';
+                    showMoreBtn.textContent = lang === 'zh' ? '显示更多' : 'Show More';
+                }
+            }
+        }
+
+        // 切换显示更多标签
+        function toggleMoreTags() {
+            const moreTags = document.querySelector('#gameTags .more-tags');
+            const showMoreBtn = document.querySelector('#gameTags .show-more-btn');
+            if (moreTags && showMoreBtn) {
+                if (moreTags.style.display === 'none') {
+                    moreTags.style.display = 'block';
+                    showMoreBtn.textContent = lang === 'zh' ? '显示更少' : 'Show Less';
+                } else {
+                    moreTags.style.display = 'none';
+                    showMoreBtn.textContent = lang === 'zh' ? '显示更多' : 'Show More';
+                }
+            }
+        }
+
+        // 按类别搜索
+        function searchByCategory(category) {
+            const checkbox = document.querySelector(`#gameTypes input[value="${category}"]`);
+            if (checkbox) {
+                // 直接切换checkbox的状态
+                checkbox.checked = !checkbox.checked;
+                // 触发change事件以执行搜索
+                checkbox.dispatchEvent(new Event('change'));
+            }
+        }
+
+        // 按类型搜索
+        function searchByGenre(genre) {
+            const checkbox = document.querySelector(`#gameTags input[value="${genre}"]`);
+            if (checkbox) {
+                // 直接切换checkbox的状态
+                checkbox.checked = !checkbox.checked;
+                // 触发change事件以执行搜索
+                checkbox.dispatchEvent(new Event('change'));
+            }
+        }
+
+        // 更新筛选选项的计数
+        async function updateFilterCounts() {
+            const query = document.getElementById('searchInput').value.trim();
+            const filters = getFilters();
+            
+            try {
+                const response = await fetch('/api/search_stats', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        filters: filters
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to fetch search stats');
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    // 更新游戏类型计数
+                    const gameTypesContainer = document.querySelector('#gameTypes .visible-categories');
+                    const moreCategoriesContainer = document.querySelector('#gameTypes .more-categories');
+                    const types = data.gameTypes;
+                    
+                    // 获取当前选中的类型（包括高级检索中选择的类型）
+                    const selectedTypes = new Set([
+                        ...(selectedFilters.types || []),
+                        ...Array.from(document.querySelectorAll('#gameTypes input[type="checkbox"]:checked'))
+                            .map(cb => cb.value)
+                    ]);
+                    
+                    // 更新可见类型（只显示前5个）
+                    gameTypesContainer.innerHTML = types.slice(0, 5).map(type => `
+                        <label class="filter-option">
+                            <input type="checkbox" value="${type.id}" 
+                                   ${selectedTypes.has(type.id) ? 'checked' : ''}
+                                   onchange="performSearch()">
+                            <span>${type.name}</span>
+                        </label>
+                    `).join('');
+                    
+                    // 更新更多类型（第6个及以后）
+                    if (types.length > 5) {
+                        moreCategoriesContainer.innerHTML = types.slice(5).map(type => `
+                            <label class="filter-option">
+                                <input type="checkbox" value="${type.id}"
+                                       ${selectedTypes.has(type.id) ? 'checked' : ''}
+                                       onchange="performSearch()">
+                                <span>${type.name}</span>
+                            </label>
+                        `).join('');
+                        document.querySelector('#gameTypes .show-more-btn').style.display = 'block';
+                    } else {
+                        document.querySelector('#gameTypes .show-more-btn').style.display = 'none';
+                    }
+
+                    // 更新游戏标签计数
+                    const visibleTagsContainer = document.querySelector('#gameTags .visible-tags');
+                    const moreTagsContainer = document.querySelector('#gameTags .more-tags');
+                    const tags = data.tags;
+                    
+                    // 获取当前选中的标签（包括高级检索中选择的标签）
+                    const selectedTags = new Set([
+                        ...(selectedFilters.tags || []),
+                        ...Array.from(document.querySelectorAll('#gameTags input[type="checkbox"]:checked'))
+                            .map(cb => cb.value)
+                    ]);
+                    
+                    // 更新可见标签（只显示前5个）
+                    visibleTagsContainer.innerHTML = tags.slice(0, 5).map(tag => `
+                        <label class="filter-option">
+                            <input type="checkbox" value="${tag.id}"
+                                   ${selectedTags.has(tag.id) ? 'checked' : ''}
+                                   onchange="performSearch()">
+                            <span>${tag.name}</span>
+                        </label>
+                    `).join('');
+                    
+                    // 更新更多标签（第6个及以后）
+                    if (tags.length > 5) {
+                        moreTagsContainer.innerHTML = tags.slice(5).map(tag => `
+                            <label class="filter-option">
+                                <input type="checkbox" value="${tag.id}"
+                                       ${selectedTags.has(tag.id) ? 'checked' : ''}
+                                       onchange="performSearch()">
+                                <span>${tag.name}</span>
+                            </label>
+                        `).join('');
+                        document.querySelector('#gameTags .show-more-btn').style.display = 'block';
+                    } else {
+                        document.querySelector('#gameTags .show-more-btn').style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating filter counts:', error);
+            }
+        }
+
+        // 显示搜索结果
+        function displayResults(games) {
+            const searchResults = document.getElementById('searchResults');
+            
+            if (!games || games.length === 0) {
+                searchResults.innerHTML = `
+                    <div class="no-results">
+                        ${lang === 'zh' ? '没有找到相关游戏' : 'No games found'}
+                    </div>
+                `;
+                return;
+            }
+
+            searchResults.innerHTML = games.map(game => `
+                <a href="/game/${game.游戏应用ID}?lang=${lang}" class="game-card">
+                    <img src="${game.header_image || game['Header image'] || game['展示图片链接'] || '/static/images/placeholder.jpg'}" 
+                         alt="${escapeHtml(game.名称)}"
+                         onerror="this.onerror=null; this.src='/static/images/placeholder.jpg';"
+                         loading="lazy">
+                    <div class="game-info">
+                        <h3>${escapeHtml(game.名称)}</h3>
+                        <div class="game-meta">
+                            <div class="game-date">${formatDate(game.发布日期)}</div>
+                            <div class="game-price">${formatPrice(game.价格)}</div>
+                        </div>
+                        <div class="game-stats">
+                            <span class="rating" title="${lang === 'zh' ? '评分' : 'Rating'}">
+                                ${formatRating(game.好评率)}
+                                ${game.评论总数 ? 
+                                  `(${formatNumber(game.评论总数)} ${lang === 'zh' ? '条评价' : 'reviews'})` : 
+                                  ''}
+                            </span>
+                            ${game.最高同时在线人数 ? 
+                              `<span class="peak-ccu" title="${lang === 'zh' ? '最高同时在线' : 'Peak CCU'}">
+                                👥 ${formatNumber(game.最高同时在线人数)}
+                               </span>` : 
+                              ''}
+                        </div>
+                        <div class="game-tags">
+                            ${(game.游戏类别 || []).map(category => 
+                                `<span class="category-tag" onclick="event.preventDefault(); event.stopPropagation(); searchByCategory('${escapeHtml(category)}')">${escapeHtml(category)}</span>`
+                            ).join('')}
+                            ${(game.玩法类型 || []).slice(0, 3).map(genre => 
+                                `<span class="genre-tag" onclick="event.preventDefault(); event.stopPropagation(); searchByGenre('${escapeHtml(genre)}')">${escapeHtml(genre)}</span>`
+                            ).join('')}
+                        </div>
+                        <div class="game-platforms">
+                            ${game.支持Windows ? '<span title="Windows">🪟</span>' : ''}
+                            ${game.支持Mac ? '<span title="Mac">🍎</span>' : ''}
+                            ${game.支持Linux ? '<span title="Linux">🐧</span>' : ''}
+                        </div>
+                    </div>
+                </a>
+            `).join('');
+        }
+
+        // 更新分页
+        function updatePagination(total) {
+            const totalPages = Math.ceil(total / pageSize);
+            const pagination = document.getElementById('pagination');
+            
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let html = '<div class="pagination-controls">';
+            
+            // 上一页按钮
+            if (currentPage > 1) {
+                html += `<button onclick="changePage(${currentPage - 1})" class="page-btn">
+                    ${lang === 'zh' ? '上一页' : 'Previous'}
+                </button>`;
+            }
+
+            // 页码按钮
+            for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+                html += `
+                    <button onclick="changePage(${i})" 
+                            class="page-btn ${i === currentPage ? 'active' : ''}">
+                        ${i}
+                    </button>
+                `;
+            }
+
+            // 下一页按钮
+            if (currentPage < totalPages) {
+                html += `<button onclick="changePage(${currentPage + 1})" class="page-btn">
+                    ${lang === 'zh' ? '下一页' : 'Next'}
+                </button>`;
+            }
+
+            html += '</div>';
+            pagination.innerHTML = html;
+        }
+
+        // 切换页面
+        function changePage(page) {
+            currentPage = page;
+            performSearch();
+            window.scrollTo(0, 0);
+        }
+
+        // 显示游戏详情
+        async function showGameDetail(appId) {
+            try {
+                const response = await fetch(`/api/game/${appId}?lang=${lang}`);
+                if (!response.ok) throw new Error('Failed to fetch game details');
+                
+                const data = await response.json();
+                if (data.status === 'success') {
+                    const modal = document.createElement('div');
+                    modal.className = 'game-detail-modal';
+                    modal.innerHTML = data.html;
+                    document.body.appendChild(modal);
+                    document.body.style.overflow = 'hidden';
+
+                    // 点击背景关闭弹窗
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) {
+                            modal.remove();
+                            document.body.style.overflow = '';
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching game details:', error);
+            }
+        }
+
+        // 格式化函数
+        function formatPrice(price) {
+            if (price === 0) return lang === 'zh' ? '免费' : 'Free';
+            return lang === 'zh' ? `¥${price.toFixed(2)}` : `$${price.toFixed(2)}`;
+        }
+
+        function formatRating(ratio) {
+            if (!ratio && ratio !== 0) return lang === 'zh' ? '暂无评分' : 'No rating';
+            const percentage = (ratio * 100).toFixed(1);
+            return `${percentage}% ${lang === 'zh' ? '好评' : 'Positive'}`;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US');
+        }
+
+        function formatNumber(num) {
+            return new Intl.NumberFormat(lang === 'zh' ? 'zh-CN' : 'en-US').format(num);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // 更新额外筛选的收起/展开功能
+        function toggleAdditionalFilters() {
+            const filters = document.getElementById('additionalFilters');
+            const toggleBtn = document.querySelector('.toggle-btn');
+            const isCollapsed = filters.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                filters.classList.remove('collapsed');
+                toggleBtn.classList.remove('collapsed');
+                toggleBtn.querySelector('.toggle-icon').textContent = '▼';
+            } else {
+                filters.classList.add('collapsed');
+                toggleBtn.classList.add('collapsed');
+                toggleBtn.querySelector('.toggle-icon').textContent = '▶';
+            }
+            
+            // 保存状态到 localStorage
+            localStorage.setItem('additionalFiltersCollapsed', !isCollapsed);
+        }
+
+        // 在页面加载时检查额外筛选的状态，默认收起
+        document.addEventListener('DOMContentLoaded', function() {
+            const filtersCollapsed = localStorage.getItem('additionalFiltersCollapsed') !== 'false'; // 默认为true（收起）
+            if (filtersCollapsed) {
+                const filters = document.getElementById('additionalFilters');
+                const toggleBtn = document.querySelector('.toggle-btn');
+                filters.classList.add('collapsed');
+                toggleBtn.classList.add('collapsed');
+                toggleBtn.querySelector('.toggle-icon').textContent = '▶';
+            }
+        });
+    </script>
+</body>
+</html>

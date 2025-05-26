@@ -1,0 +1,526 @@
+.advanced-search-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.advanced-search-container {
+    background: #1b2838;
+    border-radius: 8px;
+    padding: 30px;
+    color: #c7d5e0;
+    margin: 0 auto;
+    max-width: 1100px;
+}
+
+.advanced-search-container h1 {
+    color: #66c0f4;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.advanced-search-form {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+/* 检索条件区域 */
+.search-conditions {
+    background: #2a475e;
+    border-radius: 6px;
+    padding: 25px;
+    margin-bottom: 60px;
+}
+
+.search-row {
+    display: flex;
+    gap: 25px;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 25px;
+    background: #1b2838;
+    border-radius: 4px;
+    position: relative;
+    padding-right: 50px;
+}
+
+.field-select,
+.operator-select,
+.logic-select {
+    flex: 0 0 120px;
+}
+
+.value-input {
+    flex: 1;
+    margin-right: 30px;
+}
+
+.field-select select,
+.operator-select select,
+.logic-select select,
+.value-input input {
+    width: 100%;
+    padding: 8px 12px;
+    background: #2a475e;
+    border: 1px solid #66c0f4;
+    border-radius: 4px;
+    color: #c7d5e0;
+    font-size: 14px;
+    margin-right: 5px;
+}
+
+.logic-select {
+    flex: 0 0 120px;
+    margin-left: 10px;
+}
+
+.add-condition-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+    margin: 20px auto;
+    display: block;
+    background: #66c0f4;
+    color: #1b2838;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    z-index: 1;
+}
+
+.add-condition-btn:hover {
+    background: #1999ff;
+    transform: scale(1.1);
+}
+
+.remove-condition-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 4px;
+    background: #ff6b6b;
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.remove-condition-btn:hover {
+    background: #ff5252;
+}
+
+/* 高级筛选区域 */
+.advanced-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    background: #2a475e;
+    border-radius: 6px;
+    padding: 30px;
+    margin-top: 60px;
+    margin-bottom: 20px;
+}
+
+.filter-section {
+    background: #1b2838;
+    border-radius: 4px;
+    padding: 20px;
+}
+
+.filter-section h2 {
+    color: #66c0f4;
+    margin-bottom: 20px;
+    font-size: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #2a475e;
+}
+
+.checkbox-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 20px;
+    background: #1b2838;
+    border: 1px solid #2a475e;
+    border-radius: 4px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #2a475e;
+    margin: 0;
+}
+
+.checkbox-label:hover {
+    background: #3a5a7a;
+    transform: translateX(5px);
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    margin-right: 8px;
+}
+
+.checkbox-label span {
+    font-size: 14px;
+    color: #c7d5e0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 操作按钮 */
+.form-actions {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 30px;
+    margin-bottom: 20px;
+}
+
+.search-button,
+.reset-button {
+    padding: 12px 35px;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    min-width: 120px;
+}
+
+.search-button {
+    background: #66c0f4;
+    color: #1b2838;
+}
+
+.search-button:hover {
+    background: #1999ff;
+}
+
+.reset-button {
+    background: #2a475e;
+    color: #c7d5e0;
+}
+
+.reset-button:hover {
+    background: #3a5a7a;
+}
+
+/* 搜索结果样式 */
+.search-results {
+    margin-top: 30px;
+    padding: 0 10px;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding: 0 5px;
+}
+
+.results-header h2 {
+    color: #66c0f4;
+    margin: 0;
+}
+
+.results-count {
+    color: #c7d5e0;
+}
+
+.sort-options {
+    margin-bottom: 25px;
+}
+
+.sort-options select {
+    padding: 10px 15px;
+    background: #1b2838;
+    border: 1px solid #66c0f4;
+    border-radius: 4px;
+    color: #c7d5e0;
+    font-size: 14px;
+    cursor: pointer;
+    min-width: 200px;
+}
+
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 25px;
+    padding: 0 5px;
+}
+
+.game-card {
+    background: #2a475e;
+    border-radius: 6px;
+    overflow: hidden;
+    transition: transform 0.2s;
+    text-decoration: none;
+    color: #c7d5e0;
+}
+
+.game-card:hover {
+    transform: translateY(-5px);
+}
+
+.game-card img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+}
+
+.game-info {
+    padding: 15px;
+}
+
+.game-info h3 {
+    margin: 0 0 10px 0;
+    color: #66c0f4;
+    font-size: 16px;
+}
+
+.game-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.game-stats {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.rating {
+    color: #a4d007;
+}
+
+.peak-ccu {
+    color: #66c0f4;
+}
+
+.game-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.category-tag,
+.genre-tag {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.category-tag {
+    background: #66c0f4;
+    color: #1b2838;
+}
+
+.genre-tag {
+    background: #2a475e;
+    color: #c7d5e0;
+}
+
+.game-platforms {
+    display: flex;
+    gap: 10px;
+    font-size: 16px;
+}
+
+/* 分页样式 */
+.pagination {
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.page-btn {
+    padding: 8px 16px;
+    background: #2a475e;
+    border: none;
+    border-radius: 4px;
+    color: #c7d5e0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.page-btn:hover {
+    background: #3a5a7a;
+}
+
+.page-btn.active {
+    background: #66c0f4;
+    color: #1b2838;
+}
+
+/* 错误和空结果提示 */
+.error-message,
+.no-results {
+    text-align: center;
+    padding: 40px;
+    background: #2a475e;
+    border-radius: 6px;
+    color: #c7d5e0;
+    font-size: 16px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .advanced-search-page {
+        padding: 15px;
+    }
+
+    .advanced-search-container {
+        padding: 20px;
+    }
+
+    .search-row {
+        flex-wrap: wrap;
+    }
+
+    .field-select,
+    .operator-select,
+    .logic-select {
+        flex: 0 0 calc(33.33% - 10px);
+    }
+
+    .value-input {
+        flex: 0 0 100%;
+        margin-top: 10px;
+    }
+
+    .advanced-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .checkbox-group {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+
+    .results-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+
+    .sort-options select {
+        width: 100%;
+        min-width: unset;
+    }
+}
+
+/* 日期范围选择器样式 */
+.date-range {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.date-range input[type="date"] {
+    flex: 1;
+    min-width: 0;
+}
+
+.date-range span {
+    color: #c7d5e0;
+    font-size: 16px;
+}
+
+/* 平台选项样式 */
+.platform-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 15px;
+    margin-top: 10px;
+}
+
+/* 年龄评级选项样式 */
+.age-rating-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 15px;
+    margin-top: 10px;
+}
+
+/* 错误和空数据提示样式 */
+.error-message,
+.no-data {
+    text-align: center;
+    padding: 20px;
+    background: #2a475e;
+    border-radius: 6px;
+    color: #c7d5e0;
+    font-size: 14px;
+    margin: 10px 0;
+}
+
+.error-message {
+    color: #ff6b6b;
+}
+
+/* 删除按钮样式优化 */
+.remove-condition-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* 添加条件按钮样式优化 */
+.add-condition-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+    margin: 20px auto;
+    display: block;
+    background: #66c0f4;
+    color: #1b2838;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.add-condition-btn:hover {
+    background: #1999ff;
+    transform: scale(1.1);
+}
+
+/* 在检索条件区域和高级筛选区域之间添加分隔 */
+.search-conditions::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background: rgba(102, 192, 244, 0.2);
+    margin: 30px 0;
+} 
