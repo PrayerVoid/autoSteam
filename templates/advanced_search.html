@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if lang == 'zh' %}高级检索{% else %}Advanced Search{% endif %} - Steam游戏搜索</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/advanced_search.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="{{ url_for('home', lang=lang) }}">{% if lang == 'zh' %}Steam游戏搜索{% else %}Steam Game Search{% endif %}</a>
+        </div>
+        <div class="nav-links">
+            <a href="{{ url_for('home', lang=lang) }}">{% if lang == 'zh' %}首页{% else %}Home{% endif %}</a>
+            <a href="{{ url_for('category', lang=lang) }}">{% if lang == 'zh' %}游戏分类{% else %}Categories{% endif %}</a>
+            <a href="{{ url_for('guide', lang=lang) }}">{% if lang == 'zh' %}说明指南{% else %}Guide{% endif %}</a>
+            <a href="{{ url_for('ai_recommend', lang=lang) }}">{% if lang == 'zh' %}AI推荐{% else %}AI Recommend{% endif %}</a>
+        </div>
+        <div class="language-switch">
+            <a href="?lang=zh">中文</a> | <a href="?lang=en">English</a>
+        </div>
+    </nav>
+
+    <main class="advanced-search-page">
+        <div class="advanced-search-container">
+            <h1>{% if lang == 'zh' %}高级检索{% else %}Advanced Search{% endif %}</h1>
+            
+            <form id="advancedSearchForm" class="advanced-search-form" onsubmit="return handleFormSubmit(event)">
+                <!-- 检索条件区域 -->
+                <div class="search-conditions">
+                    <div class="search-row">
+                        <div class="field-select">
+                            <select class="field-selector">
+                                <option value="name">{% if lang == 'zh' %}游戏名称{% else %}Game Name{% endif %}</option>
+                                <option value="description">{% if lang == 'zh' %}游戏描述{% else %}Game Description{% endif %}</option>
+                                <option value="price">{% if lang == 'zh' %}价格{% else %}Price{% endif %}</option>
+                                <option value="date">{% if lang == 'zh' %}发布日期{% else %}Release Date{% endif %}</option>
+                                <option value="rating">{% if lang == 'zh' %}好评率{% else %}Rating{% endif %}</option>
+                                <option value="reviews">{% if lang == 'zh' %}评论数{% else %}Reviews{% endif %}</option>
+                                <option value="ccu">{% if lang == 'zh' %}同时在线人数{% else %}CCU{% endif %}</option>
+                            </select>
+                        </div>
+                        <div class="operator-select">
+                            <select class="operator">
+                                <option value="=">=</option>
+                                <option value=">">></option>
+                                <option value="<"><</option>
+                                <option value=">=">>=</option>
+                                <option value="<="><=</option>
+                                <option value="like">{% if lang == 'zh' %}包含{% else %}Contains{% endif %}</option>
+                            </select>
+                        </div>
+                        <div class="value-input">
+                            <input type="text" class="search-value" placeholder="{% if lang == 'zh' %}输入检索词{% else %}Enter search term{% endif %}">
+                        </div>
+                        <button type="button" class="remove-condition-btn">-</button>
+                    </div>
+                    <button type="button" class="add-condition-btn">+</button>
+                </div>
+
+                <!-- 高级筛选区域 -->
+                <div class="advanced-filters">
+                    <div class="filter-section">
+                        <h2>{% if lang == 'zh' %}平台支持{% else %}Platform Support{% endif %}</h2>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="platform" value="windows">
+                                <span>Windows</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="platform" value="mac">
+                                <span>Mac</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="platform" value="linux">
+                                <span>Linux</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <h2>{% if lang == 'zh' %}语言支持{% else %}Language Support{% endif %}</h2>
+                        <div class="checkbox-group" id="languages">
+                            <!-- 将由JavaScript动态填充 -->
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <h2>{% if lang == 'zh' %}游戏类型{% else %}Game Types{% endif %}</h2>
+                        <div class="checkbox-group" id="gameTypes">
+                            <!-- 将由JavaScript动态填充 -->
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <h2>{% if lang == 'zh' %}游戏标签{% else %}Game Tags{% endif %}</h2>
+                        <div class="checkbox-group" id="gameTags">
+                            <!-- 将由JavaScript动态填充 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="form-actions">
+                    <button type="submit" class="search-button">
+                        {% if lang == 'zh' %}搜索{% else %}Search{% endif %}
+                    </button>
+                    <button type="reset" class="reset-button">
+                        {% if lang == 'zh' %}重置{% else %}Reset{% endif %}
+                    </button>
+                </div>
+            </form>
+
+            <!-- 搜索结果 -->
+            <div id="searchResults" class="search-results" style="display: none;">
+                <div class="results-header">
+                    <h2>{% if lang == 'zh' %}搜索结果{% else %}Search Results{% endif %}</h2>
+                    <div class="results-count">
+                        {% if lang == 'zh' %}
+                        找到 <span id="resultCount">0</span> 个结果
+                        {% else %}
+                        Found <span id="resultCount">0</span> results
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="sort-options">
+                    <select id="sortBy">
+                        <option value="relevance">{% if lang == 'zh' %}相关度{% else %}Relevance{% endif %}</option>
+                        <option value="price_asc">{% if lang == 'zh' %}价格从低到高{% else %}Price: Low to High{% endif %}</option>
+                        <option value="price_desc">{% if lang == 'zh' %}价格从高到低{% else %}Price: High to Low{% endif %}</option>
+                        <option value="date_asc">{% if lang == 'zh' %}发布日期从早到晚{% else %}Release Date: Old to New{% endif %}</option>
+                        <option value="date_desc">{% if lang == 'zh' %}发布日期从晚到早{% else %}Release Date: New to Old{% endif %}</option>
+                        <option value="rating">{% if lang == 'zh' %}用户评分{% else %}User Rating{% endif %}</option>
+                        <option value="popularity">{% if lang == 'zh' %}热度{% else %}Popularity{% endif %}</option>
+                    </select>
+                </div>
+                <div id="resultsGrid" class="results-grid">
+                    <!-- 将由JavaScript动态填充 -->
+                </div>
+                <div id="pagination" class="pagination">
+                    <!-- 将由JavaScript动态填充 -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const lang = '{{ lang }}';
+        const pageSize = 20;
+        let currentPage = 1;
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            // 加载分类和语言数据
+            loadCategories();
+            loadLanguages();
+            
+            // 为现有的字段选择器添加事件监听器
+            document.querySelectorAll('.field-selector').forEach(selector => {
+                selector.addEventListener('change', function() {
+                    updateOperators(this);
+                });
+                // 初始化操作符选项
+                updateOperators(selector);
+            });
+
+            // 添加检索条件按钮事件
+            const addBtn = document.querySelector('.add-condition-btn');
+            if (addBtn) {
+                addBtn.addEventListener('click', function() {
+                    addSearchRow();
+                });
+            }
+
+            // 为第一个检索条件行添加删除按钮
+            const firstRow = document.querySelector('.search-row');
+            if (firstRow && !firstRow.querySelector('.remove-condition-btn')) {
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'remove-condition-btn';
+                removeBtn.innerHTML = '-';
+                removeBtn.onclick = function() {
+                    removeSearchRow(this);
+                };
+                firstRow.appendChild(removeBtn);
+            }
+        });
+
+        // 加载语言数据
+        async function loadLanguages() {
+            const languages = [
+                { id: 'zh', name: '简体中文' },
+                { id: 'en', name: 'English' },
+                { id: 'ja', name: '日本語' },
+                { id: 'ko', name: '한국어' },
+                { id: 'ru', name: 'Русский' },
+                { id: 'de', name: 'Deutsch' },
+                { id: 'fr', name: 'Français' },
+                { id: 'es', name: 'Español' }
+            ];
+
+            const languagesContainer = document.getElementById('languages');
+            languagesContainer.innerHTML = languages.map(lang => `
+                <label class="checkbox-label">
+                    <input type="checkbox" name="language" value="${lang.id}">
+                    <span>${lang.name}</span>
+                </label>
+            `).join('');
+        }
+
+        // 加载分类数据
+        async function loadCategories() {
+            try {
+                const response = await fetch('/api/categories', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ lang })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch categories');
+                }
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    // 填充游戏类型
+                    const gameTypesContainer = document.getElementById('gameTypes');
+                    gameTypesContainer.innerHTML = data.gameTypes.map(type => `
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="gameType" value="${type.id}">
+                            <span>${type.name}</span>
+                        </label>
+                    `).join('');
+
+                    // 填充游戏标签
+                    const gameTagsContainer = document.getElementById('gameTags');
+                    gameTagsContainer.innerHTML = data.tags.map(tag => `
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="gameTag" value="${tag.id}">
+                            <span>${tag.name}</span>
+                        </label>
+                    `).join('');
+                } else {
+                    throw new Error(data.message || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Error loading categories:', error);
+                document.getElementById('gameTypes').innerHTML = '<div class="error-message">加载游戏类型失败</div>';
+                document.getElementById('gameTags').innerHTML = '<div class="error-message">加载游戏标签失败</div>';
+            }
+        }
+
+        // 添加新的检索条件行
+        function addSearchRow() {
+            const searchConditions = document.querySelector('.search-conditions');
+            const firstRow = document.querySelector('.search-row');
+            const newRow = firstRow.cloneNode(true);
+            
+            // 清空输入值
+            newRow.querySelector('.search-value').value = '';
+            // 重置选择器的值
+            newRow.querySelector('.field-selector').value = 'name';
+            newRow.querySelector('.operator').value = '=';
+            
+            // 添加删除按钮
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-condition-btn';
+            removeBtn.innerHTML = '-';
+            removeBtn.onclick = function() {
+                removeSearchRow(this);
+            };
+            newRow.appendChild(removeBtn);
+            
+            // 添加到容器中
+            searchConditions.insertBefore(newRow, document.querySelector('.add-condition-btn'));
+            
+            // 为新添加的行添加事件监听器
+            const newFieldSelector = newRow.querySelector('.field-selector');
+            newFieldSelector.addEventListener('change', function() {
+                updateOperators(this);
+            });
+            
+            // 初始化操作符选项
+            updateOperators(newFieldSelector);
+        }
+
+        // 删除检索条件行
+        function removeSearchRow(button) {
+            const searchConditions = document.querySelector('.search-conditions');
+            if (searchConditions.children.length > 1) {
+                button.closest('.search-row').remove();
+            } else {
+                // 如果是最后一行，只清空值
+                const row = button.closest('.search-row');
+                row.querySelector('.search-value').value = '';
+                row.querySelector('.field-selector').value = 'name';
+                row.querySelector('.operator').value = '=';
+            }
+        }
+
+        // 更新操作符选项
+        function updateOperators(fieldSelector) {
+            const operator = fieldSelector.closest('.search-row').querySelector('.operator');
+            const field = fieldSelector.value;
+            
+            // 清空现有选项
+            operator.innerHTML = '';
+            
+            // 为所有字段类型添加相同的操作符
+            operator.innerHTML = `
+                <option value="=">=</option>
+                <option value=">">></option>
+                <option value="<"><</option>
+                <option value=">=">>=</option>
+                <option value="<="><=</option>
+            `;
+        }
+
+        // 处理表单提交
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            const formData = getFormData();
+            
+            // 构建查询字符串，使用 encodeURIComponent 而不是 URLSearchParams 来避免 HTML 实体编码
+            let queryString = '';
+            
+            // 添加查询表达式
+            if (formData.query) {
+                queryString += `q=${encodeURIComponent(formData.query)}`;
+            }
+            
+            // 添加筛选条件
+            if (formData.filters) {
+                Object.entries(formData.filters).forEach(([key, value]) => {
+                    if (value) {
+                        if (Array.isArray(value)) {
+                            value.forEach(v => {
+                                if (queryString) queryString += '&';
+                                queryString += `${encodeURIComponent(key)}=${encodeURIComponent(v)}`;
+                            });
+                        } else {
+                            if (queryString) queryString += '&';
+                            queryString += `${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+                        }
+                    }
+                });
+            }
+            
+            // 添加排序选项
+            if (formData.sort && formData.sort !== 'relevance') {
+                if (queryString) queryString += '&';
+                queryString += `sort=${encodeURIComponent(formData.sort)}`;
+            }
+            
+            // 添加语言参数
+            if (queryString) queryString += '&';
+            queryString += `lang=${encodeURIComponent(lang)}`;
+            
+            // 跳转到检索结果页面
+            window.location.href = `/search?${queryString}`;
+            return false;
+        }
+
+        // 获取表单数据
+        function getFormData() {
+            const formData = {
+                query: '',
+                filters: {}
+            };
+
+            // 获取所有搜索条件行
+            const searchRows = document.querySelectorAll('.search-row');
+            const conditions = [];
+
+            searchRows.forEach(row => {
+                const field = row.querySelector('.field-selector').value;
+                const operator = row.querySelector('.operator').value;
+                const value = row.querySelector('.search-value').value.trim();
+
+                if (value) {
+                    let condition = '';
+                    switch (field) {
+                        case 'name':
+                            condition = `(#名称)${operator}${value}`;
+                            break;
+                        case 'description':
+                            condition = `(#描述)${operator}${value}`;
+                            break;
+                        case 'price':
+                            condition = `(#价格)${operator}${value}`;
+                            break;
+                        case 'date':
+                            condition = `(#发布日期)${operator}${value}`;
+                            break;
+                        case 'rating':
+                            condition = `(#好评率)${operator}${value/100}`;
+                            break;
+                        case 'reviews':
+                            condition = `(#评论总数)${operator}${value}`;
+                            break;
+                        case 'ccu':
+                            condition = `(#最高同时在线人数)${operator}${value}`;
+                            break;
+                    }
+                    conditions.push(condition);
+                }
+            });
+
+            // 平台支持
+            const selectedPlatforms = Array.from(document.querySelectorAll('input[name="platform"]:checked'))
+                .map(cb => cb.value);
+            if (selectedPlatforms.length > 0) {
+                formData.filters.platforms = selectedPlatforms;
+            }
+
+            // 语言支持
+            const selectedLanguages = Array.from(document.querySelectorAll('input[name="language"]:checked'))
+                .map(cb => cb.value);
+            if (selectedLanguages.length > 0) {
+                formData.filters.languages = selectedLanguages;
+            }
+
+            // 游戏类型
+            const selectedTypes = Array.from(document.querySelectorAll('input[name="gameType"]:checked'))
+                .map(cb => cb.value);
+            if (selectedTypes.length > 0) {
+                formData.filters.types = selectedTypes;
+            }
+
+            // 游戏标签
+            const selectedTags = Array.from(document.querySelectorAll('input[name="gameTag"]:checked'))
+                .map(cb => cb.value);
+            if (selectedTags.length > 0) {
+                formData.filters.tags = selectedTags;
+            }
+
+            // 组合所有条件（直接连接，不使用 &）
+            formData.query = conditions.join('');
+            formData.sort = document.getElementById('sortBy').value;
+            formData.page = currentPage;
+            formData.page_size = pageSize;
+
+            return formData;
+        }
+    </script>
+</body>
+</html> 

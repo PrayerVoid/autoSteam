@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ game.名称 }} - Steam游戏搜索</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/game_detail.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="{{ url_for('home', lang=lang) }}">{% if lang == 'zh' %}Steam游戏搜索{% else %}Steam Game Search{% endif %}</a>
+        </div>
+        <div class="nav-links">
+            <a href="{{ url_for('home', lang=lang) }}">{% if lang == 'zh' %}首页{% else %}Home{% endif %}</a>
+            <a href="{{ url_for('category', lang=lang) }}">{% if lang == 'zh' %}游戏分类{% else %}Categories{% endif %}</a>
+            <a href="{{ url_for('guide', lang=lang) }}">{% if lang == 'zh' %}说明指南{% else %}Guide{% endif %}</a>
+            <a href="{{ url_for('ai_recommend', lang=lang) }}">{% if lang == 'zh' %}AI推荐{% else %}AI Recommend{% endif %}</a>
+        </div>
+        <div class="language-switch">
+            <a href="?lang=zh">中文</a> | <a href="?lang=en">English</a>
+        </div>
+    </nav>
+
+    <main class="game-detail-container">
+        <div class="game-header">
+            <div class="game-header-image">
+                <img src="{{ game.header_image }}" alt="{{ game.名称 }}" 
+                     onerror="this.src='/static/images/placeholder.jpg'">
+            </div>
+            <div class="game-header-info">
+                <h1 class="game-title">{{ game.名称 }}</h1>
+                <div class="game-meta">
+                    <div class="game-price">{{ game.价格 }}</div>
+                    <div class="game-rating">
+                        <span class="rating-value">{{ game.好评率 }}</span>
+                        {% if game.评论总数 %}
+                        <span class="review-count">({{ game.评论总数 }} {{ '条评价' if lang == 'zh' else 'reviews' }})</span>
+                        {% endif %}
+                    </div>
+                    <div class="game-release-date">
+                        {{ '发布日期' if lang == 'zh' else 'Release Date' }}: {{ game.发布日期 }}
+                    </div>
+                </div>
+                <div class="game-platforms">
+                    {% if game.支持Windows %}
+                    <span class="platform-icon" title="Windows">🪟</span>
+                    {% endif %}
+                    {% if game.支持Mac %}
+                    <span class="platform-icon" title="Mac">🍎</span>
+                    {% endif %}
+                    {% if game.支持Linux %}
+                    <span class="platform-icon" title="Linux">🐧</span>
+                    {% endif %}
+                </div>
+                <div class="game-tags">
+                    {% for category in game.游戏类别 %}
+                    <span class="category-tag">{{ category }}</span>
+                    {% endfor %}
+                    {% for genre in game.玩法类型 %}
+                    <span class="genre-tag">{{ genre }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="game-content">
+            <div class="game-description">
+                <h2>{{ '游戏简介' if lang == 'zh' else 'Description' }}</h2>
+                <p>{{ game.游戏简介 }}</p>
+            </div>
+
+            {% if game.媒体评价 %}
+            <div class="game-media-reviews">
+                <h2>{{ '媒体评价' if lang == 'zh' else 'Media Reviews' }}</h2>
+                <p>{{ game.媒体评价 }}</p>
+            </div>
+            {% endif %}
+
+            {% if game.支持语言 %}
+            <div class="game-languages">
+                <h2>{{ '支持语言' if lang == 'zh' else 'Supported Languages' }}</h2>
+                <ul class="language-list">
+                    {% for lang_item in game.支持语言 %}
+                    <li>{{ lang_item }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if game.系统需求 %}
+            <div class="game-requirements">
+                <h2>{{ '系统需求' if lang == 'zh' else 'System Requirements' }}</h2>
+                {% if game.系统需求.最低配置 %}
+                <div class="requirements-section">
+                    <h3>{{ '最低配置' if lang == 'zh' else 'Minimum Requirements' }}</h3>
+                    <ul>
+                        {% for key, value in game.系统需求.最低配置.items() %}
+                        <li><strong>{{ key }}:</strong> {{ value }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% if game.系统需求.推荐配置 %}
+                <div class="requirements-section">
+                    <h3>{{ '推荐配置' if lang == 'zh' else 'Recommended Requirements' }}</h3>
+                    <ul>
+                        {% for key, value in game.系统需求.推荐配置.items() %}
+                        <li><strong>{{ key }}:</strong> {{ value }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if game.游戏标签 %}
+            <div class="game-tags-section">
+                <h2>{{ '游戏标签' if lang == 'zh' else 'Game Tags' }}</h2>
+                <div class="tags-container">
+                    {% for tag in game.游戏标签 %}
+                    <span class="tag">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if game.最高同时在线人数 %}
+            <div class="game-stats">
+                <h2>{{ '游戏统计' if lang == 'zh' else 'Game Statistics' }}</h2>
+                <div class="stat-item">
+                    <span class="stat-label">{{ '最高同时在线' if lang == 'zh' else 'Peak CCU' }}:</span>
+                    <span class="stat-value">{{ game.最高同时在线人数 }}</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+</body>
+</html> 

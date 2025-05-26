@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if lang == 'zh' %}游戏分类{% else %}Game Categories{% endif %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/category.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="{{ url_for('home', lang=lang) }}">{% if lang == 'zh' %}Steam游戏搜索{% else %}Steam Game Search{% endif %}</a>
+        </div>
+        <div class="nav-links">
+            <a href="{{ url_for('home', lang=lang) }}">{% if lang == 'zh' %}首页{% else %}Home{% endif %}</a>
+            <a href="{{ url_for('category', lang=lang) }}" class="active">{% if lang == 'zh' %}游戏分类{% else %}Categories{% endif %}</a>
+            <a href="{{ url_for('guide', lang=lang) }}">{% if lang == 'zh' %}说明指南{% else %}Guide{% endif %}</a>
+            <a href="{{ url_for('ai_recommend', lang=lang) }}">{% if lang == 'zh' %}AI推荐{% else %}AI Recommend{% endif %}</a>
+        </div>
+        <div class="language-switch">
+            <a href="?lang=zh">中文</a> | <a href="?lang=en">English</a>
+        </div>
+    </nav>
+
+    <main class="category-page">
+        <h1>{% if lang == 'zh' %}游戏分类{% else %}Game Categories{% endif %}</h1>
+        
+        <div class="category-grid">
+            <div class="category-section">
+                <h2>{% if lang == 'zh' %}游戏类型{% else %}Game Types{% endif %}</h2>
+                <div class="category-cards" id="gameTypes">
+                    <!-- 将由JavaScript动态填充 -->
+                </div>
+            </div>
+
+            <div class="category-section">
+                <h2>{% if lang == 'zh' %}热门标签{% else %}Popular Tags{% endif %}</h2>
+                <div class="tag-cloud" id="tagCloud">
+                    <!-- 将由JavaScript动态填充 -->
+                </div>
+            </div>
+
+            <div class="category-section">
+                <h2>{% if lang == 'zh' %}按发行年份{% else %}By Release Year{% endif %}</h2>
+                <div class="year-timeline" id="yearTimeline">
+                    <!-- 将由JavaScript动态填充 -->
+                </div>
+            </div>
+
+            <div class="category-section">
+                <h2>{% if lang == 'zh' %}按价格区间{% else %}By Price Range{% endif %}</h2>
+                <div class="price-ranges" id="priceRanges">
+                    <!-- 将由JavaScript动态填充 -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/category.js') }}"></script>
+</body>
+</html>
