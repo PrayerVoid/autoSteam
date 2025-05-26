@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ game.名称 }} - Steam游戏搜索</title>
+    <title>{{ game.名称 }} - {% if lang == 'zh' %}Steam游戏搜索{% else %}Steam Game Search{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/game_detail.css') }}">
 </head>
@@ -42,6 +42,12 @@
                     <div class="game-release-date">
                         {{ '发布日期' if lang == 'zh' else 'Release Date' }}: {{ game.发布日期 }}
                     </div>
+                </div>
+                <div class="game-developers">
+                    {{ '开发商' if lang == 'zh' else 'Developers' }}: {{ game.开发商 }}
+                </div>
+                <div class="game-publishers">
+                    {{ '发行商' if lang == 'zh' else 'Publishers' }}: {{ game.发行商 }}
                 </div>
                 <div class="game-platforms">
                     {% if game.支持Windows %}
@@ -137,5 +143,34 @@
             {% endif %}
         </div>
     </main>
+
+    <script>
+        // 格式化价格
+        function formatPrice(price) {
+            if (price === 0) return '{{ "免费" if lang == "zh" else "Free" }}';
+            return '{{ "¥" if lang == "zh" else "$" }}' + price.toFixed(2);
+        }
+
+        // 格式化评分
+        function formatRating(ratio) {
+            if (!ratio && ratio !== 0) return '{{ "暂无评分" if lang == "zh" else "No rating" }}';
+            const percentage = (ratio * 100).toFixed(1);
+            return `${percentage}% {{ "好评" if lang == "zh" else "Positive" }}`;
+        }
+
+        // 初始化页面数据
+        document.addEventListener('DOMContentLoaded', function() {
+            const priceElement = document.querySelector('.game-price');
+            const ratingElement = document.querySelector('.rating-value');
+            
+            if (priceElement) {
+                priceElement.textContent = formatPrice({{ game.价格 }});
+            }
+            
+            if (ratingElement) {
+                ratingElement.textContent = formatRating({{ game.好评率 }});
+            }
+        });
+    </script>
 </body>
 </html> 
