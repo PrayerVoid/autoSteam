@@ -29,7 +29,7 @@
         <div class="search-box-container">
             <div class="search-box">
                 <input type="text" id="searchInput" 
-                       placeholder="{% if lang == 'zh' %}输入搜索表达式，例如：(#名称)=星露谷物语(#价格)<100{% else %}Enter search expression, e.g.: (#name)=Stardew Valley(#price)<100{% endif %}" 
+                       placeholder="{% if lang == 'zh' %}输入搜索表达式，例如：(#名称)=星露谷物语(#价格)<100{% else %}Enter search expression, e.g.: (#Name)=Stardew Valley(#price)<100{% endif %}" 
                        value="{{ query }}">
                 <button onclick="performSearch()">{% if lang == 'zh' %}搜索{% else %}Search{% endif %}</button>
                 <a href="{{ url_for('advanced_search', lang=lang) }}" class="advanced-search-link">
@@ -411,73 +411,165 @@
             const filters = getFilters();
             const sort = document.getElementById('sortBy').value;
             
-            // 重置所有"显示更多/更少"按钮的状态
-            resetShowMoreButtons();
-            
-            try {
-                const response = await fetch('/api/search', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        query: query,
-                        filters: filters,
-                        sort: sort,
-                        page: currentPage,
-                        page_size: pageSize,
-                        mode: currentMode
-                    })
-                });
+            // 如果是高级检索模式，转换字段名
+            if (currentMode === 'advanced' && query.includes('(#')) {
+                // 字段映射
+                const fieldMapping = {
+                    '名称': 'Name',
+                    '游戏简介': 'About the game',
+                    '开发商': 'Developers',
+                    '发行商': 'Publishers',
+                    '媒体评价': 'Reviews',
+                    '价格': 'price',
+                    '好评率': 'rating',
+                    '评论总数': 'reviews_count',
+                    '最高同时在线人数': 'peak_ccu',
+                    '发布日期': 'release_date'
+                };
 
-                if (!response.ok) throw new Error('Search failed');
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    displayResults(data.data);
-                    updatePagination(data.total);
-                    document.getElementById('resultCount').textContent = data.total;
-                    
-                    // 更新筛选选项的计数
-                    await updateFilterCounts();
-                    
-                    // 更新URL，但不刷新页面
-                    const newUrl = new URL(window.location.href);
-                    
-                    // 清除所有现有的搜索参数
-                    Array.from(newUrl.searchParams.keys()).forEach(key => {
-                        if (key !== 'lang') {  // 保留语言参数
-                            newUrl.searchParams.delete(key);
-                        }
+                let processedQuery = query;
+                if (lang === 'en') {
+                    // 如果是英文模式，将中文字段名替换为英文
+                    Object.entries(fieldMapping).forEach(([zhField, enField]) => {
+                        const regex = new RegExp(`\\(#${zhField}\\)`, 'g');
+                        processedQuery = processedQuery.replace(regex, `(#${enField})`);
                     });
-                    
-                    // 添加基本参数
-                    if (query) newUrl.searchParams.set('q', query);
-                    if (currentMode) newUrl.searchParams.set('mode', currentMode);
-                    if (sort) newUrl.searchParams.set('sort', sort);
-                    
-                    // 添加筛选参数，使用AND逻辑
-                    Object.entries(filters).forEach(([key, value]) => {
-                        if (value) {
-                            if (Array.isArray(value)) {
-                                // 使用Set去重，并将数组作为单个参数值添加
-                                const uniqueValues = [...new Set(value)];
-                                newUrl.searchParams.set(key, uniqueValues.join(','));
-                            } else {
-                                newUrl.searchParams.set(key, value);
-                            }
-                        }
-                    });
-                    
-                    window.history.pushState({}, '', newUrl);
                 }
-            } catch (error) {
-                console.error('Search error:', error);
-                document.getElementById('searchResults').innerHTML = `
-                    <div class="error-message">
-                        ${lang === 'zh' ? '搜索出错，请稍后重试' : 'Search error, please try again later'}
-                    </div>
-                `;
+                
+                try {
+                    const response = await fetch('/api/search', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            query: processedQuery,
+                            filters: filters,
+                            sort: sort,
+                            page: currentPage,
+                            page_size: pageSize,
+                            mode: currentMode,
+                            lang: lang
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('Search failed');
+
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        displaySearchResults(data.data);
+                        updatePagination(data.total);
+                        document.getElementById('resultCount').textContent = data.total;
+                        
+                        // 更新筛选选项的计数
+                        await updateFilterCounts();
+                        
+                        // 更新URL，但不刷新页面
+                        const newUrl = new URL(window.location.href);
+                        
+                        // 清除所有现有的搜索参数
+                        Array.from(newUrl.searchParams.keys()).forEach(key => {
+                            if (key !== 'lang') {  // 保留语言参数
+                                newUrl.searchParams.delete(key);
+                            }
+                        });
+                        
+                        // 添加基本参数
+                        if (processedQuery) newUrl.searchParams.set('q', processedQuery);
+                        if (currentMode) newUrl.searchParams.set('mode', currentMode);
+                        if (sort) newUrl.searchParams.set('sort', sort);
+                        
+                        // 添加筛选参数，使用AND逻辑
+                        Object.entries(filters).forEach(([key, value]) => {
+                            if (value) {
+                                if (Array.isArray(value)) {
+                                    // 使用Set去重，并将数组作为单个参数值添加
+                                    const uniqueValues = [...new Set(value)];
+                                    newUrl.searchParams.set(key, uniqueValues.join(','));
+                                } else {
+                                    newUrl.searchParams.set(key, value);
+                                }
+                            }
+                        });
+                        
+                        window.history.pushState({}, '', newUrl);
+                    }
+                } catch (error) {
+                    console.error('Search error:', error);
+                    document.getElementById('searchResults').innerHTML = `
+                        <div class="error-message">
+                            ${lang === 'zh' ? '搜索出错，请稍后重试' : 'Search error, please try again later'}
+                        </div>
+                    `;
+                }
+            } else {
+                // 简单搜索模式，直接发送请求
+                try {
+                    const response = await fetch('/api/search', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            query: query,
+                            filters: filters,
+                            sort: sort,
+                            page: currentPage,
+                            page_size: pageSize,
+                            mode: currentMode,
+                            lang: lang
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('Search failed');
+
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        displaySearchResults(data.data);
+                        updatePagination(data.total);
+                        document.getElementById('resultCount').textContent = data.total;
+                        
+                        // 更新筛选选项的计数
+                        await updateFilterCounts();
+                        
+                        // 更新URL，但不刷新页面
+                        const newUrl = new URL(window.location.href);
+                        
+                        // 清除所有现有的搜索参数
+                        Array.from(newUrl.searchParams.keys()).forEach(key => {
+                            if (key !== 'lang') {  // 保留语言参数
+                                newUrl.searchParams.delete(key);
+                            }
+                        });
+                        
+                        // 添加基本参数
+                        if (query) newUrl.searchParams.set('q', query);
+                        if (currentMode) newUrl.searchParams.set('mode', currentMode);
+                        if (sort) newUrl.searchParams.set('sort', sort);
+                        
+                        // 添加筛选参数，使用AND逻辑
+                        Object.entries(filters).forEach(([key, value]) => {
+                            if (value) {
+                                if (Array.isArray(value)) {
+                                    // 使用Set去重，并将数组作为单个参数值添加
+                                    const uniqueValues = [...new Set(value)];
+                                    newUrl.searchParams.set(key, uniqueValues.join(','));
+                                } else {
+                                    newUrl.searchParams.set(key, value);
+                                }
+                            }
+                        });
+                        
+                        window.history.pushState({}, '', newUrl);
+                    }
+                } catch (error) {
+                    console.error('Search error:', error);
+                    document.getElementById('searchResults').innerHTML = `
+                        <div class="error-message">
+                            ${lang === 'zh' ? '搜索出错，请稍后重试' : 'Search error, please try again later'}
+                        </div>
+                    `;
+                }
             }
         }
 
@@ -679,59 +771,115 @@
         }
 
         // 显示搜索结果
-        function displayResults(games) {
-            const searchResults = document.getElementById('searchResults');
-            
+        function displaySearchResults(games) {
             if (!games || games.length === 0) {
-                searchResults.innerHTML = `
-                    <div class="no-results">
-                        ${lang === 'zh' ? '没有找到相关游戏' : 'No games found'}
-                    </div>
-                `;
+                searchResults.innerHTML = `<div class="no-results">${
+                    lang === 'zh' ? '没有找到相关游戏' : 'No games found'
+                }</div>`;
                 return;
             }
 
-            searchResults.innerHTML = games.map(game => `
-                <a href="/game/${game.游戏应用ID}?lang=${lang}" class="game-card">
-                    <img src="${game.header_image || game['Header image'] || game['展示图片链接'] || '/static/images/placeholder.jpg'}" 
-                         alt="${escapeHtml(game.名称)}"
-                         onerror="this.onerror=null; this.src='/static/images/placeholder.jpg';"
-                         loading="lazy">
-                    <div class="game-info">
-                        <h3>${escapeHtml(game.名称)}</h3>
-                        <div class="game-meta">
-                            <div class="game-date">${formatDate(game.发布日期)}</div>
-                            <div class="game-price">${formatPrice(game.价格)}</div>
-                        </div>
-                        <div class="game-stats">
-                            <span class="rating" title="${lang === 'zh' ? '评分' : 'Rating'}">
-                                ${formatRating(game.好评率)}
-                                ${game.评论总数 ? 
-                                  `(${formatNumber(game.评论总数)} ${lang === 'zh' ? '条评价' : 'reviews'})` : 
-                                  ''}
-                            </span>
-                            ${game.最高同时在线人数 ? 
-                              `<span class="peak-ccu" title="${lang === 'zh' ? '最高同时在线' : 'Peak CCU'}">
-                                👥 ${formatNumber(game.最高同时在线人数)}
-                               </span>` : 
-                              ''}
-                        </div>
-                        <div class="game-tags">
-                            ${(game.游戏类别 || []).map(category => 
-                                `<span class="category-tag" onclick="event.preventDefault(); event.stopPropagation(); searchByCategory('${escapeHtml(category)}')">${escapeHtml(category)}</span>`
-                            ).join('')}
-                            ${(game.玩法类型 || []).slice(0, 3).map(genre => 
-                                `<span class="genre-tag" onclick="event.preventDefault(); event.stopPropagation(); searchByGenre('${escapeHtml(genre)}')">${escapeHtml(genre)}</span>`
-                            ).join('')}
-                        </div>
-                        <div class="game-platforms">
-                            ${game.支持Windows ? '<span title="Windows">🪟</span>' : ''}
-                            ${game.支持Mac ? '<span title="Mac">🍎</span>' : ''}
-                            ${game.支持Linux ? '<span title="Linux">🐧</span>' : ''}
-                        </div>
-                    </div>
-                </a>
-            `).join('');
+            const gameCards = games.map(game => {
+                const gameCard = document.createElement('a');
+                gameCard.href = `/game/${game.游戏应用ID}?lang=${lang}`;
+                gameCard.className = 'game-card';
+                
+                const gameImage = document.createElement('img');
+                gameImage.src = game.header_image || '/static/images/placeholder.jpg';
+                gameImage.alt = game.名称;
+                gameImage.onerror = function() { this.src = '/static/images/placeholder.jpg'; };
+                
+                const gameInfo = document.createElement('div');
+                gameInfo.className = 'game-info';
+                
+                // 游戏标题
+                const title = document.createElement('h3');
+                title.textContent = lang === 'en' && game.Name ? game.Name : game.名称;
+                
+                // 游戏元数据
+                const gameMeta = document.createElement('div');
+                gameMeta.className = 'game-meta';
+                gameMeta.innerHTML = `
+                    <div class="game-date">${formatDate(game.发布日期)}</div>
+                    <div class="game-price">${formatPrice(game.价格)}</div>
+                `;
+                
+                // 游戏统计
+                const gameStats = document.createElement('div');
+                gameStats.className = 'game-stats';
+                gameStats.innerHTML = `
+                    <span class="rating" title="${lang === 'zh' ? '评分' : 'Rating'}">
+                        ${formatRating(game.好评率)}
+                        ${game.评论总数 ? 
+                          `(${formatNumber(game.评论总数)} ${lang === 'zh' ? '条评价' : 'reviews'})` : 
+                          ''}
+                    </span>
+                    ${game.最高同时在线人数 ? 
+                      `<span class="peak-ccu" title="${lang === 'zh' ? '最高同时在线' : 'Peak CCU'}">
+                        👥 ${formatNumber(game.最高同时在线人数)}
+                       </span>` : 
+                      ''}
+                `;
+                
+                // 游戏标签
+                const gameTags = document.createElement('div');
+                gameTags.className = 'game-tags';
+                
+                // 添加类别标签
+                if (game.游戏类别 && game.游戏类别.length > 0) {
+                    game.游戏类别.slice(0, 3).forEach(category => {
+                        const categoryTag = document.createElement('span');
+                        categoryTag.className = 'category-tag';
+                        categoryTag.textContent = category;
+                        categoryTag.onclick = (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            searchByCategory(category);
+                        };
+                        gameTags.appendChild(categoryTag);
+                    });
+                }
+                
+                // 添加玩法类型标签
+                if (game.玩法类型 && game.玩法类型.length > 0) {
+                    game.玩法类型.slice(0, 3).forEach(genre => {
+                        const genreTag = document.createElement('span');
+                        genreTag.className = 'genre-tag';
+                        genreTag.textContent = genre;
+                        genreTag.onclick = (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            searchByGenre(genre);
+                        };
+                        gameTags.appendChild(genreTag);
+                    });
+                }
+                
+                // 平台图标
+                const gamePlatforms = document.createElement('div');
+                gamePlatforms.className = 'game-platforms';
+                gamePlatforms.innerHTML = `
+                    ${game.支持Windows ? '<span title="Windows">🪟</span>' : ''}
+                    ${game.支持Mac ? '<span title="Mac">🍎</span>' : ''}
+                    ${game.支持Linux ? '<span title="Linux">🐧</span>' : ''}
+                `;
+                
+                // 组装所有元素
+                gameInfo.appendChild(title);
+                gameInfo.appendChild(gameMeta);
+                gameInfo.appendChild(gameStats);
+                gameInfo.appendChild(gameTags);
+                gameInfo.appendChild(gamePlatforms);
+                
+                gameCard.appendChild(gameImage);
+                gameCard.appendChild(gameInfo);
+                
+                return gameCard;
+            });
+            
+            // 清空并添加新的搜索结果
+            searchResults.innerHTML = '';
+            gameCards.forEach(card => searchResults.appendChild(card));
         }
 
         // 更新分页

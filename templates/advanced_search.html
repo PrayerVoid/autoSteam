@@ -34,7 +34,7 @@
                         <div class="field-select">
                             <select class="field-selector">
                                 <option value="name">{% if lang == 'zh' %}游戏名称{% else %}Game Name{% endif %}</option>
-                                <option value="description">{% if lang == 'zh' %}游戏描述{% else %}Game Description{% endif %}</option>
+                                <option value="about">{% if lang == 'zh' %}游戏简介{% else %}Game Description{% endif %}</option>
                                 <option value="price">{% if lang == 'zh' %}价格{% else %}Price{% endif %}</option>
                                 <option value="date">{% if lang == 'zh' %}发布日期{% else %}Release Date{% endif %}</option>
                                 <option value="rating">{% if lang == 'zh' %}好评率{% else %}Rating{% endif %}</option>
@@ -386,25 +386,41 @@
                     let condition = '';
                     switch (field) {
                         case 'name':
-                            condition = `(#名称)${operator}${value}`;
+                            condition = `(#${lang === 'en' ? 'Name' : '名称'})${operator}${value}`;
                             break;
-                        case 'description':
-                            condition = `(#描述)${operator}${value}`;
+                        case 'about':
+                            condition = `(#${lang === 'en' ? 'About the game' : '游戏简介'})${operator}${value}`;
                             break;
                         case 'price':
-                            condition = `(#价格)${operator}${value}`;
+                            // 确保价格是数值
+                            const priceValue = parseFloat(value);
+                            if (!isNaN(priceValue)) {
+                                condition = `(#价格)${operator}${priceValue}`;
+                            }
                             break;
                         case 'date':
                             condition = `(#发布日期)${operator}${value}`;
                             break;
                         case 'rating':
-                            condition = `(#好评率)${operator}${value/100}`;
+                            // 好评率需要转换为0-1之间的小数
+                            const ratingValue = parseFloat(value) / 100;
+                            if (!isNaN(ratingValue)) {
+                                condition = `(#好评率)${operator}${ratingValue}`;
+                            }
                             break;
                         case 'reviews':
-                            condition = `(#评论总数)${operator}${value}`;
+                            // 评论数需要是整数
+                            const reviewValue = parseInt(value);
+                            if (!isNaN(reviewValue)) {
+                                condition = `(#评论总数)${operator}${reviewValue}`;
+                            }
                             break;
                         case 'ccu':
-                            condition = `(#最高同时在线人数)${operator}${value}`;
+                            // 同时在线人数需要是整数
+                            const ccuValue = parseInt(value);
+                            if (!isNaN(ccuValue)) {
+                                condition = `(#最高同时在线人数)${operator}${ccuValue}`;
+                            }
                             break;
                     }
                     conditions.push(condition);
@@ -446,6 +462,99 @@
             formData.page_size = pageSize;
 
             return formData;
+        }
+
+        function generateSearchExpression() {
+            let expression = '';
+            
+            // 游戏名称
+            const nameInput = document.getElementById('gameName').value.trim();
+            if (nameInput) {
+                expression += `(#${lang === 'en' ? 'Name' : '名称'})=${nameInput}`;
+            }
+            
+            // 游戏简介
+            const descInput = document.getElementById('gameDescription').value.trim();
+            if (descInput) {
+                if (expression) expression += ' ';
+                expression += `(#${lang === 'en' ? 'About the game' : '游戏简介'})=${descInput}`;
+            }
+            
+            // 开发商
+            const devInput = document.getElementById('developer').value.trim();
+            if (devInput) {
+                if (expression) expression += ' ';
+                expression += `(#开发商)=${devInput}`;
+            }
+            
+            // 发行商
+            const pubInput = document.getElementById('publisher').value.trim();
+            if (pubInput) {
+                if (expression) expression += ' ';
+                expression += `(#发行商)=${pubInput}`;
+            }
+            
+            // 价格范围
+            const minPrice = document.getElementById('minPrice').value;
+            const maxPrice = document.getElementById('maxPrice').value;
+            if (minPrice) {
+                const priceValue = parseFloat(minPrice);
+                if (!isNaN(priceValue)) {
+                    if (expression) expression += ' ';
+                    expression += `(#价格)>=${priceValue}`;
+                }
+            }
+            if (maxPrice) {
+                const priceValue = parseFloat(maxPrice);
+                if (!isNaN(priceValue)) {
+                    if (expression) expression += ' ';
+                    expression += `(#价格)<=${priceValue}`;
+                }
+            }
+            
+            // 好评率
+            const minRating = document.getElementById('minRating').value;
+            if (minRating) {
+                const ratingValue = parseFloat(minRating) / 100;
+                if (!isNaN(ratingValue)) {
+                    if (expression) expression += ' ';
+                    expression += `(#好评率)>=${ratingValue}`;
+                }
+            }
+            
+            // 评论数
+            const minReviews = document.getElementById('minReviews').value;
+            if (minReviews) {
+                const reviewValue = parseInt(minReviews);
+                if (!isNaN(reviewValue)) {
+                    if (expression) expression += ' ';
+                    expression += `(#评论总数)>=${reviewValue}`;
+                }
+            }
+            
+            // 最高同时在线人数
+            const minPeakCCU = document.getElementById('minPeakCCU').value;
+            if (minPeakCCU) {
+                const ccuValue = parseInt(minPeakCCU);
+                if (!isNaN(ccuValue)) {
+                    if (expression) expression += ' ';
+                    expression += `(#最高同时在线人数)>=${ccuValue}`;
+                }
+            }
+            
+            // 发布日期范围
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+            if (fromDate) {
+                if (expression) expression += ' ';
+                expression += `(#发布日期)>=${fromDate}`;
+            }
+            if (toDate) {
+                if (expression) expression += ' ';
+                expression += `(#发布日期)<=${toDate}`;
+            }
+            
+            return expression;
         }
     </script>
 </body>
