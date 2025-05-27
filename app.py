@@ -120,34 +120,187 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
             ]
         }
 
+        def handle_advanced_query(query, lang):
+            conditions = []
+            current_pos = 0
+            # 字段映射
+            if lang == 'en':
+                field_mapping = {
+                    'Name': 'Name',
+                    'name': 'Name',
+                    'About': 'About the game',
+                    'about': 'About the game',
+                    'Reviews': 'Reviews',
+                    'reviews': 'Reviews',
+                    'Developers': 'Developers',
+                    'developers': 'Developers',
+                    'Publishers': 'Publishers',
+                    'publishers': 'Publishers',
+                    '价格': '价格',
+                    'price': '价格',
+                    '好评率': '好评率',
+                    'rating': '好评率',
+                    '评论总数': '评论总数',
+                    'reviews_count': '评论总数',
+                    '最高同时在线人数': '最高同时在线人数',
+                    'peak_ccu': '最高同时在线人数',
+                    '发布日期': '发布日期',
+                    'release_date': '发布日期'
+                }
+            else:
+                field_mapping = {
+                    '名称': '名称',
+                    'name': '名称',
+                    '简介': '游戏简介',
+                    'about': '游戏简介',
+                    '评价': '媒体评价',
+                    'reviews': '媒体评价',
+                    '开发商': '开发商',
+                    'developers': '开发商',
+                    '发行商': '发行商',
+                    'publishers': '发行商',
+                    '价格': '价格',
+                    'price': '价格',
+                    '好评率': '好评率',
+                    'rating': '好评率',
+                    '评论总数': '评论总数',
+                    'reviews_count': '评论总数',
+                    '最高同时在线人数': '最高同时在线人数',
+                    'peak_ccu': '最高同时在线人数',
+                    '发布日期': '发布日期',
+                    'release_date': '发布日期'
+                }
+            while current_pos < len(query):
+                if query[current_pos:].startswith('(#'):
+                    next_condition = query.find('(#', current_pos + 2)
+                    if next_condition == -1:
+                        condition = query[current_pos:]
+                    else:
+                        condition = query[current_pos:next_condition]
+                    
+                    if ')=' in condition:
+                        field = condition[2:condition.find(')=')]
+                        value = condition[condition.find(')=')+2:].strip()
+                        search_field = field_mapping.get(field, field)
+                        if search_field in ['价格', '好评率', '评论总数', '最高同时在线人数']:
+                            try:
+                                if search_field == '好评率':
+                                    numeric_value = float(value)
+                                    if numeric_value > 1:
+                                        numeric_value = numeric_value / 100
+                                else:
+                                    numeric_value = float(value)
+                                body['query']['bool']['must'].append({
+                                    'match': {search_field: str(numeric_value)}
+                                })
+                            except ValueError:
+                                logger.warning(f"Invalid numeric value for {search_field}: {value}")
+                                pass
+                        else:
+                            body['query']['bool']['must'].append({
+                                'match': {search_field: value}
+                            })
+                    elif ')>=' in condition:
+                        field = condition[2:condition.find(')>=')]
+                        value = condition[condition.find(')>=')+3:].strip()
+                        search_field = field_mapping.get(field, field)
+                        try:
+                            if search_field == '好评率':
+                                numeric_value = float(value)
+                                if numeric_value > 1:
+                                    numeric_value = numeric_value / 100
+                            else:
+                                numeric_value = float(value)
+                            body['query']['bool']['filter'].append({
+                                'range': {search_field: {'gte': numeric_value}}
+                            })
+                        except ValueError:
+                            logger.warning(f"Invalid numeric value for {search_field}: {value}")
+                            pass
+                    elif ')<=' in condition:
+                        field = condition[2:condition.find(')<=')]
+                        value = condition[condition.find(')<=')+3:].strip()
+                        search_field = field_mapping.get(field, field)
+                        try:
+                            if search_field == '好评率':
+                                numeric_value = float(value)
+                                if numeric_value > 1:
+                                    numeric_value = numeric_value / 100
+                            else:
+                                numeric_value = float(value)
+                            body['query']['bool']['filter'].append({
+                                'range': {search_field: {'lte': numeric_value}}
+                            })
+                        except ValueError:
+                            logger.warning(f"Invalid numeric value for {search_field}: {value}")
+                            pass
+                    elif ')>' in condition:
+                        field = condition[2:condition.find(')>')]
+                        value = condition[condition.find(')>')+2:].strip()
+                        search_field = field_mapping.get(field, field)
+                        try:
+                            if search_field == '好评率':
+                                numeric_value = float(value)
+                                if numeric_value > 1:
+                                    numeric_value = numeric_value / 100
+                            else:
+                                numeric_value = float(value)
+                            body['query']['bool']['filter'].append({
+                                'range': {search_field: {'gt': numeric_value}}
+                            })
+                        except ValueError:
+                            logger.warning(f"Invalid numeric value for {search_field}: {value}")
+                            pass
+                    elif ')<' in condition:
+                        field = condition[2:condition.find(')<')]
+                        value = condition[condition.find(')<')+2:].strip()
+                        search_field = field_mapping.get(field, field)
+                        try:
+                            if search_field == '好评率':
+                                numeric_value = float(value)
+                                if numeric_value > 1:
+                                    numeric_value = numeric_value / 100
+                            else:
+                                numeric_value = float(value)
+                            body['query']['bool']['filter'].append({
+                                'range': {search_field: {'lt': numeric_value}}
+                            })
+                        except ValueError:
+                            logger.warning(f"Invalid numeric value for {search_field}: {value}")
+                            pass
+                    current_pos = next_condition if next_condition != -1 else len(query)
+                else:
+                    current_pos += 1
+
         # 添加搜索条件
         if query:
-            if mode == 'simple':
-                # 简单搜索模式：对名称、描述、类别、标签等进行关键词匹配
+            # 判断是否为复杂检索式
+            is_advanced_expr = query.strip().startswith('(#')
+            if (mode == 'advanced') or (mode == 'simple' and is_advanced_expr):
+                # 按复杂检索式处理
+                handle_advanced_query(query, lang)
+            else:
+                # 简单检索式
                 if any('\u4e00' <= char <= '\u9fff' for char in query):
-                    # 中文分词
                     keywords = jieba.lcut(query.lower())
                     query_string = ' '.join(keywords)
                 else:
                     query_string = query.lower()
-
-                # 定义搜索字段和权重
                 search_fields = [
                     '名称^3',
-                    'Name^3',  # 添加英文名称字段
+                    'Name^3',
                     '游戏简介^2',
-                    'About the game^2',  # 添加英文简介字段
+                    'About the game^2',
                     '游戏类别^2',
                     '玩法类型^2',
                     '游戏标签^2',
                     '开发商',
-                    'Developers',  # 添加英文开发商字段
+                    'Developers',
                     '发行商',
-                    'Publishers',  # 添加英文发行商字段
+                    'Publishers',
                     '媒体评价',
-                    'Reviews'  # 添加英文评价字段
+                    'Reviews'
                 ]
-
                 body['query']['bool']['must'].append({
                     'multi_match': {
                         'query': query_string,
@@ -156,177 +309,6 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                         'operator': 'or'
                     }
                 })
-            else:
-                # 高级搜索模式：解析搜索表达式
-                if query.startswith('(#'):
-                    conditions = []
-                    current_pos = 0
-
-                    # 定义字段映射
-                    if lang == 'en':
-                        # 英文字段映射
-                        field_mapping = {
-                            'Name': 'Name',
-                            'name': 'Name',
-                            'About': 'About the game',
-                            'about': 'About the game',
-                            'Reviews': 'Reviews',
-                            'reviews': 'Reviews',
-                            'Developers': 'Developers',
-                            'developers': 'Developers',
-                            'Publishers': 'Publishers',
-                            'publishers': 'Publishers',
-                            # 数值字段保持中文
-                            '价格': '价格',
-                            'price': '价格',
-                            '好评率': '好评率',
-                            'rating': '好评率',
-                            '评论总数': '评论总数',
-                            'reviews_count': '评论总数',
-                            '最高同时在线人数': '最高同时在线人数',
-                            'peak_ccu': '最高同时在线人数',
-                            '发布日期': '发布日期',
-                            'release_date': '发布日期'
-                        }
-                    else:
-                        # 中文字段映射
-                        field_mapping = {
-                            '名称': '名称',
-                            'name': '名称',
-                            '简介': '游戏简介',
-                            'about': '游戏简介',
-                            '评价': '媒体评价',
-                            'reviews': '媒体评价',
-                            '开发商': '开发商',
-                            'developers': '开发商',
-                            '发行商': '发行商',
-                            'publishers': '发行商',
-                            '价格': '价格',
-                            'price': '价格',
-                            '好评率': '好评率',
-                            'rating': '好评率',
-                            '评论总数': '评论总数',
-                            'reviews_count': '评论总数',
-                            '最高同时在线人数': '最高同时在线人数',
-                            'peak_ccu': '最高同时在线人数',
-                            '发布日期': '发布日期',
-                            'release_date': '发布日期'
-                        }
-
-                    while current_pos < len(query):
-                        if query[current_pos:].startswith('(#'):
-                            next_condition = query.find('(#', current_pos + 2)
-                            if next_condition == -1:
-                                condition = query[current_pos:]
-                            else:
-                                condition = query[current_pos:next_condition]
-                            
-                            if ')=' in condition:
-                                field = condition[2:condition.find(')=')]
-                                value = condition[condition.find(')=')+2:].strip()
-                                # 根据语言选择字段
-                                search_field = field_mapping.get(field, field)
-
-                                # 处理数值字段
-                                if search_field in ['价格', '好评率', '评论总数', '最高同时在线人数']:
-                                    try:
-                                        if search_field == '好评率':
-                                            # 如果输入的是百分比形式，转换为小数
-                                            numeric_value = float(value)
-                                            if numeric_value > 1:
-                                                numeric_value = numeric_value / 100
-                                        else:
-                                            numeric_value = float(value)
-                                        body['query']['bool']['must'].append({
-                                            'match': {search_field: str(numeric_value)}
-                                        })
-                                    except ValueError:
-                                        logger.warning(f"Invalid numeric value for {search_field}: {value}")
-                                        continue
-                                else:
-                                    body['query']['bool']['must'].append({
-                                        'match': {search_field: value}
-                                    })
-
-                            elif ')>' in condition:
-                                field = condition[2:condition.find(')>')]
-                                value = condition[condition.find(')>')+2:].strip()
-                                # 处理数值字段
-                                search_field = field_mapping.get(field, field)
-                                try:
-                                    if search_field == '好评率':
-                                        numeric_value = float(value)
-                                        if numeric_value > 1:
-                                            numeric_value = numeric_value / 100
-                                    else:
-                                        numeric_value = float(value)
-                                    body['query']['bool']['filter'].append({
-                                        'range': {search_field: {'gt': numeric_value}}
-                                    })
-                                except ValueError:
-                                    logger.warning(f"Invalid numeric value for {search_field}: {value}")
-                                    continue
-
-                            elif ')<' in condition:
-                                field = condition[2:condition.find(')<')]
-                                value = condition[condition.find(')<')+2:].strip()
-                                # 处理数值字段
-                                search_field = field_mapping.get(field, field)
-                                try:
-                                    if search_field == '好评率':
-                                        numeric_value = float(value)
-                                        if numeric_value > 1:
-                                            numeric_value = numeric_value / 100
-                                    else:
-                                        numeric_value = float(value)
-                                    body['query']['bool']['filter'].append({
-                                        'range': {search_field: {'lt': numeric_value}}
-                                    })
-                                except ValueError:
-                                    logger.warning(f"Invalid numeric value for {search_field}: {value}")
-                                    continue
-
-                            elif ')>=' in condition:
-                                field = condition[2:condition.find(')>=')]
-                                value = condition[condition.find(')>=')+3:].strip()
-                                # 处理数值字段
-                                search_field = field_mapping.get(field, field)
-                                try:
-                                    if search_field == '好评率':
-                                        numeric_value = float(value)
-                                        if numeric_value > 1:
-                                            numeric_value = numeric_value / 100
-                                    else:
-                                        numeric_value = float(value)
-                                    body['query']['bool']['filter'].append({
-                                        'range': {search_field: {'gte': numeric_value}}
-                                    })
-                                except ValueError:
-                                    logger.warning(f"Invalid numeric value for {search_field}: {value}")
-                                    continue
-
-                            elif ')<=' in condition:
-                                field = condition[2:condition.find(')<=')]
-                                value = condition[condition.find(')<=')+3:].strip()
-                                # 处理数值字段
-                                search_field = field_mapping.get(field, field)
-                                try:
-                                    if search_field == '好评率':
-                                        numeric_value = float(value)
-                                        if numeric_value > 1:
-                                            numeric_value = numeric_value / 100
-                                    else:
-                                        numeric_value = float(value)
-                                    body['query']['bool']['filter'].append({
-                                        'range': {search_field: {'lte': numeric_value}}
-                                    })
-                                except ValueError:
-                                    logger.warning(f"Invalid numeric value for {search_field}: {value}")
-                                    continue
-                            
-                            current_pos = next_condition if next_condition != -1 else len(query)
-                        else:
-                            current_pos += 1
 
         # 处理筛选条件
         if filters:

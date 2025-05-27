@@ -1,7 +1,7 @@
 import requests
 
 # 服务器地址
-url = "http://10.129.241.146:1234/embed"
+url = "http://10.129.83.80:1234/embed"
 
 # 测试文本列表
 def get_embeddings(texts, ids=None, url=url):

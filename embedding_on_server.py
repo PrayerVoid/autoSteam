@@ -21,7 +21,7 @@ else:
 
 # 嵌入函数
 def embedding(model, tokenizer, input_texts):
-    batch_dict = tokenizer(input_texts, max_length=512, padding=True, truncation=True, return_tensors='pt')
+    batch_dict = tokenizer(input_texts, max_length=5000, padding=True, truncation=True, return_tensors='pt')
     batch_dict = {k: v.to(device) for k, v in batch_dict.items()}
     outputs = model(**batch_dict)
     embeddings = outputs.last_hidden_state[:, 0]
