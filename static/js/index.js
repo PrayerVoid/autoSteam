@@ -67,7 +67,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <img src="${game.headerImage || '/static/images/placeholder.jpg'}" alt="${escapeHtml(game.name)}">
                 <div class="game-info">
                     <h3>${escapeHtml(game.name)}</h3>
-                    <p>${escapeHtml(game.shortDescription || '')}</p>
                     <div class="game-meta">
                         <span class="price">${formatPrice(game.price)}</span>
                         <span class="rating">${formatRating(game.posRatio)}</span>

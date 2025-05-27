@@ -700,52 +700,90 @@ def api_search():
 @app.route('/api/popular_games', methods=['POST'])
 def popular_games():
     try:
-        # 获取好评率高且评论数量足够多的游戏
-        min_reviews = 50000  # 设置最低评论数门槛
-        popular_games = [g for g in DEMO_GAMES if g['评论总数'] >= min_reviews]
-        games = sorted(popular_games, 
-                      key=lambda x: (x['好评率'], x['最高同时在线人数']), 
-                      reverse=True)[:10]
-        
+        # 定义查询条件：好评率高且评论数量足够多
+        lang = request.args.get('lang', 'zh')
+        body = {
+            'query': {
+                'bool': {
+                    'must': [
+                        {'range': {'评论总数': {'gte': 50000}}},  # 评论数大于等于 50000
+                        {'range': {'好评率': {'gte': 0.7}}}      # 好评率大于等于 0.7
+                    ]
+                }
+            },
+            'sort': [
+                {'好评率': 'desc'},  # 按好评率降序
+                {'最高同时在线人数': 'desc'}  # 按最高同时在线人数降序
+            ],
+            'size': 10,  # 只获取前 10 个结果
+            '_source': [
+                '游戏应用ID', '名称', '价格', '展示图片链接', '好评率'
+            ]
+        }
+
+        # 从 Elasticsearch 获取数据
+        response = es.search(index='steam_games', body=body)
+        hits = response['hits']['hits']
+
+        # 格式化返回数据
+        games = [{
+            'appId': hit['_source']['游戏应用ID'],
+            'name': hit['_source']['Name'] if lang == 'en' else hit['_source']['名称'],
+            'price': hit['_source']['价格'],
+            'headerImage': hit['_source']['展示图片链接'],
+            'posRatio': hit['_source']['好评率'],
+        } for hit in hits]
+
         return jsonify({
             'status': 'success',
-            'games': [{
-                'appId': game['游戏应用ID'],
-                'name': game['名称'],
-                'price': game['价格'],
-                'headerImage': game['header_image'],
-                'posRatio': game['好评率'],
-                'shortDescription': game['媒体评价']
-            } for game in games]
+            'games': games
         })
-        
-    except Exception as e:
-        print(f"Error fetching popular games: {str(e)}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
 
+    except Exception as e:
+        logger.error(f"Error fetching popular games: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 @app.route('/api/personalized_games', methods=['POST'])
 def personalized_games():
     try:
-        # 获取最近发布的高评分游戏
-        min_rating = 0.7  # 设置最低好评率门槛
-        recent_games = sorted([g for g in DEMO_GAMES if g['好评率'] >= min_rating],
-                            key=lambda x: x['发布日期'],
-                            reverse=True)[:10]
-        
+        # 定义查询条件：最近发布且好评率高
+        lang = request.args.get('lang', 'zh')
+        body = {
+            'query': {
+                'bool': {
+                    'must': [
+                        {'range': {'好评率': {'gte': 0.7}}},  # 好评率大于等于 0.7
+                    ]
+                }
+            },
+            'sort': [
+                {'发布日期': 'desc'}  # 按发布日期降序
+            ],
+            'size': 10,  # 只获取前 10 个结果
+            '_source': [
+                '游戏应用ID', '名称', '价格', '展示图片链接', '好评率'
+            ]
+        }
+
+        # 从 Elasticsearch 获取数据
+        response = es.search(index='steam_games', body=body)
+        hits = response['hits']['hits']
+
+        # 格式化返回数据
+        games = [{
+            'appId': hit['_source']['游戏应用ID'],
+            'name': hit['_source']['Name'] if lang == 'en' else hit['_source']['名称'],
+            'price': hit['_source']['价格'],
+            'headerImage': hit['_source']['展示图片链接'],
+            'posRatio': hit['_source']['好评率'],
+        } for hit in hits]
+
         return jsonify({
             'status': 'success',
-            'games': [{
-                'appId': game['游戏应用ID'],
-                'name': game['名称'],
-                'price': game['价格'],
-                'headerImage': game['header_image'],
-                'posRatio': game['好评率'],
-                'shortDescription': game['媒体评价']
-            } for game in recent_games]
+            'games': games
         })
-        
+
     except Exception as e:
-        print(f"Error fetching personalized games: {str(e)}")
+        logger.error(f"Error fetching personalized games: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/categories', methods=['POST'])

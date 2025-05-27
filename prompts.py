@@ -221,7 +221,6 @@ def generate_response_with_prompt(history, mode="chat", lang="zh"):
         answer = parse_ai_response(response)
     else:
         answer = response
-    print(answer)
     return answer
 
 
