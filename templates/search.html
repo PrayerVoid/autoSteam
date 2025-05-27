@@ -19,8 +19,8 @@
             <a href="{{ url_for('ai_recommend', lang=lang) }}">{% if lang == 'zh' %}AI推荐{% else %}AI Recommend{% endif %}</a>
         </div>
         <div class="language-switch">
-            <a href="{{ request.path }}{% if request.query_string %}?{{ request.query_string|safe|replace('lang=' + lang, 'lang=zh') }}{% else %}?lang=zh{% endif %}">中文</a> | 
-<a href="{{ request.path }}{% if request.query_string %}?{{ request.query_string|safe|replace('lang=' + lang, 'lang=en') }}{% else %}?lang=en{% endif %}">English</a>
+            <a href="{{ request.path }}{% if request.query_string %}?{{ request.query_string.decode('utf-8').replace('lang=' + lang, 'lang=zh') }}{% else %}?lang=zh{% endif %}">中文</a> | 
+            <a href="{{ request.path }}{% if request.query_string %}?{{ request.query_string.decode('utf-8').replace('lang=' + lang, 'lang=en') }}{% else %}?lang=en{% endif %}">English</a>
         </div>
     </nav>
 
@@ -30,7 +30,7 @@
             <div class="search-box">
                 <input type="text" id="searchInput" 
                        placeholder="{% if lang == 'zh' %}输入搜索表达式，例如：(#名称)=星露谷物语(#价格)<100{% else %}Enter search expression, e.g.: (#Name)=Stardew Valley(#price)<100{% endif %}" 
-                       value="{{ query|safe }}">
+                       value="{{ query }}">
                 <button onclick="performSearch()">{% if lang == 'zh' %}搜索{% else %}Search{% endif %}</button>
                 <a href="{{ url_for('advanced_search', lang=lang) }}" class="advanced-search-link">
                     {% if lang == 'zh' %}高级检索{% else %}Advanced Search{% endif %}
@@ -410,8 +410,6 @@
             const query = document.getElementById('searchInput').value.trim();
             const filters = getFilters();
             const sort = document.getElementById('sortBy').value;
-            const urlParams = new URLSearchParams(window.location.search);
-            const vector_query = urlParams.get('vector_query') || null
             
             // 如果是高级检索模式，转换字段名
             if (currentMode === 'advanced' && query.includes('(#')) {
@@ -451,8 +449,7 @@
                             page: currentPage,
                             page_size: pageSize,
                             mode: currentMode,
-                            lang: lang,
-                            vector_query:vector_query
+                            lang: lang
                         })
                     });
 
@@ -481,7 +478,6 @@
                         if (processedQuery) newUrl.searchParams.set('q', processedQuery);
                         if (currentMode) newUrl.searchParams.set('mode', currentMode);
                         if (sort) newUrl.searchParams.set('sort', sort);
-                        if (vector_query) newUrl.searchParams.set('vector_query',vector_query)
                         
                         // 添加筛选参数，使用AND逻辑
                         Object.entries(filters).forEach(([key, value]) => {
@@ -1020,17 +1016,6 @@
                 toggleBtn.querySelector('.toggle-icon').textContent = '▶';
             }
         });
-
-        document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('searchInput');
-    searchInput.value = decodeHtml(searchInput.value);
-});
-
-function decodeHtml(html) {
-    const txt = document.createElement('textarea');
-    txt.innerHTML = html;
-    return txt.value;
-}
     </script>
 </body>
 </html>

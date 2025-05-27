@@ -1,20 +1,15 @@
 from flask import Flask, render_template, jsonify, request
 from datetime import datetime
-import json
 import jieba
 from mock_data import DEMO_GAMES
 from elasticsearch import Elasticsearch
 import logging
-from prompts import generate_response_with_prompt
-from embeddings import get_embeddings
 
 app = Flask(__name__)
 
 # 配置日志
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
-
 
 # 设置默认支持的语言
 SUPPORTED_LANGUAGES = ['zh', 'en']
@@ -93,7 +88,7 @@ def validate_filters(filters):
     
     return validated_filters
 
-def search_games(query='', filters=None, sort='relevance', page=1, page_size=20, mode='advanced', lang='zh',vector_query=None):
+def search_games(query='', filters=None, sort='relevance', page=1, page_size=20, mode='advanced', lang='zh'):
     """使用Elasticsearch搜索游戏"""
     try:
         # 构建基础查询
@@ -124,234 +119,36 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                 '支持Windows', '支持Mac', '支持Linux'
             ]
         }
-         # 添加向量查询逻辑
-        if vector_query:
-            script_score_query = {
-                    'query': {
-                         'bool':{
-                             'must':[],
-                             'filter':[]},
-                    },
-                    'script': {
-                        'source': "double totalScore = 0; for (int i = 0; i < params.vector_queries.size(); i++) { def vector_query = params.vector_queries[i]; String field = vector_query.get(\"field\"); double weight = vector_query.get(\"weight\"); def query_vector = vector_query.get(\"vector\"); double cosine_similarity = Math.abs(cosineSimilarity( query_vector,field)); totalScore += weight * cosine_similarity; } return totalScore;",
-                        'params': {
-                            'vector_queries': []
-                        }
-                    }}
-                
-         # 计算嵌入向量并填充参数
-            # vector_query: List of (field, weight, text)
-            texts = [text for _, _, text in vector_query]
-            embeddings = get_embeddings(texts=texts)
-            for (field, weight, _), embedding in zip(vector_query, embeddings):
-                script_score_query['script']['params']['vector_queries'].append({
-                    'field': field,
-                    'weight': weight,
-                    'vector': embedding["embedding"][0]
-                })
-            # 将 script_score_query 嵌入到 body['query'] 中，而不是覆盖
-            body['query']['script_score'] = script_score_query
-            # 清除 bool 字段，避免与 script_score 冲突
-            if 'bool' in body['query']:
-                del body['query']['bool']
-        def append_condition(field,value):
-                if not vector_query:
-                    body['query']['bool'][field].append(value)
-                else:
-                    body['query']['script_score']['query']['bool'][field].append(value)
-                return
-        def handle_advanced_query(query, lang):
-            conditions = []
-            current_pos = 0
-            # 字段映射
-            if lang == 'en':
-                field_mapping = {
-                    'Name': 'Name',
-                    'name': 'Name',
-                    'About': 'About the game',
-                    'about': 'About the game',
-                    'Reviews': 'Reviews',
-                    'reviews': 'Reviews',
-                    'Developers': 'Developers',
-                    'developers': 'Developers',
-                    'Publishers': 'Publishers',
-                    'publishers': 'Publishers',
-                    '价格': '价格',
-                    'price': '价格',
-                    '好评率': '好评率',
-                    'rating': '好评率',
-                    '评论总数': '评论总数',
-                    'reviews_count': '评论总数',
-                    '最高同时在线人数': '最高同时在线人数',
-                    'peak_ccu': '最高同时在线人数',
-                    '发布日期': '发布日期',
-                    'release_date': '发布日期'
-                }
-            else:
-                field_mapping = {
-                    '名称': '名称',
-                    'name': '名称',
-                    '简介': '游戏简介',
-                    'about': '游戏简介',
-                    '评价': '媒体评价',
-                    'reviews': '媒体评价',
-                    '开发商': '开发商',
-                    'developers': '开发商',
-                    '发行商': '发行商',
-                    'publishers': '发行商',
-                    '价格': '价格',
-                    'price': '价格',
-                    '好评率': '好评率',
-                    'rating': '好评率',
-                    '评论总数': '评论总数',
-                    'reviews_count': '评论总数',
-                    '最高同时在线人数': '最高同时在线人数',
-                    'peak_ccu': '最高同时在线人数',
-                    '发布日期': '发布日期',
-                    'release_date': '发布日期'
-                }
-            while current_pos < len(query):
-                if query[current_pos:].startswith('(#'):
-                    next_condition = query.find('(#', current_pos + 2)
-                    if next_condition == -1:
-                        condition = query[current_pos:]
-                    else:
-                        condition = query[current_pos:next_condition]
-                    
-                    if ')=' in condition:
-                        field = condition[2:condition.find(')=')]
-                        value = condition[condition.find(')=')+2:].strip()
-                        search_field = field_mapping.get(field, field)
-                        if search_field in ['价格', '好评率', '评论总数', '最高同时在线人数','发布日期']:
-                            try:
-                                if search_field == '好评率':
-                                    numeric_value = float(value)
-                                    if numeric_value > 1:
-                                        numeric_value = numeric_value / 100
-                                elif search_field == '发布日期':
-                                    numeric_value = value
-                                else:
-                                    numeric_value = float(value)
-                                append_condition('must',{
-                                    'match': {search_field: str(numeric_value)}
-                                })
-                            except ValueError:
-                                logger.warning(f"Invalid numeric value for {search_field}: {value}")
-                                pass
-                        else:
-                            append_condition('must',{
-                                'match': {search_field: value}
-                            })
-                    elif ')>=' in condition:
-                        field = condition[2:condition.find(')>=')]
-                        value = condition[condition.find(')>=')+3:].strip()
-                        search_field = field_mapping.get(field, field)
-                        try:
-                            if search_field == '好评率':
-                                numeric_value = float(value)
-                                if numeric_value > 1:
-                                    numeric_value = numeric_value / 100
-                            elif search_field == '发布日期':
-                                    numeric_value = value
-                            else:
-                                numeric_value = float(value)
-                            append_condition('filter',{
-                                'range': {search_field: {'gte': numeric_value}}
-                            })
-                        except ValueError:
-                            logger.warning(f"Invalid numeric value for {search_field}: {value}")
-                            pass
-                    elif ')<=' in condition:
-                        field = condition[2:condition.find(')<=')]
-                        value = condition[condition.find(')<=')+3:].strip()
-                        search_field = field_mapping.get(field, field)
-                        try:
-                            if search_field == '好评率':
-                                numeric_value = float(value)
-                                if numeric_value > 1:
-                                    numeric_value = numeric_value / 100
-                            elif search_field == '发布日期':
-                                    numeric_value = value
-                            else:
-                                numeric_value = float(value)
-                            append_condition('filter',{
-                                'range': {search_field: {'lte': numeric_value}}
-                            })
-                        except ValueError:
-                            logger.warning(f"Invalid numeric value for {search_field}: {value}")
-                            pass
-                    elif ')>' in condition:
-                        field = condition[2:condition.find(')>')]
-                        value = condition[condition.find(')>')+2:].strip()
-                        search_field = field_mapping.get(field, field)
-                        try:
-                            if search_field == '好评率':
-                                numeric_value = float(value)
-                                if numeric_value > 1:
-                                    numeric_value = numeric_value / 100
-                            elif search_field == '发布日期':
-                                    numeric_value = value
-                            else:
-                                numeric_value = float(value)
-                            append_condition('filter',{
-                                'range': {search_field: {'gt': numeric_value}}
-                            })
-                        except ValueError:
-                            logger.warning(f"Invalid numeric value for {search_field}: {value}")
-                            pass
-                    elif ')<' in condition:
-                        field = condition[2:condition.find(')<')]
-                        value = condition[condition.find(')<')+2:].strip()
-                        search_field = field_mapping.get(field, field)
-                        try:
-                            if search_field == '好评率':
-                                numeric_value = float(value)
-                                if numeric_value > 1:
-                                    numeric_value = numeric_value / 100
-                            elif search_field == '发布日期':
-                                    numeric_value = value
-                            else:
-                                numeric_value = float(value)
-                            append_condition('filter',{
-                                'range': {search_field: {'lt': numeric_value}}
-                            })
-                        except ValueError:
-                            logger.warning(f"Invalid numeric value for {search_field}: {value}")
-                            pass
-                    current_pos = next_condition if next_condition != -1 else len(query)
-                else:
-                    current_pos += 1
 
         # 添加搜索条件
         if query:
-            # 判断是否为复杂检索式
-            is_advanced_expr = query.strip().startswith('(#')
-            if is_advanced_expr:
-                # 按复杂检索式处理
-                handle_advanced_query(query, lang)
-            else:
-                # 简单检索式
+            if mode == 'simple':
+                # 简单搜索模式：对名称、描述、类别、标签等进行关键词匹配
                 if any('\u4e00' <= char <= '\u9fff' for char in query):
+                    # 中文分词
                     keywords = jieba.lcut(query.lower())
                     query_string = ' '.join(keywords)
                 else:
                     query_string = query.lower()
+
+                # 定义搜索字段和权重
                 search_fields = [
                     '名称^3',
-                    'Name^3',
+                    'Name^3',  # 添加英文名称字段
                     '游戏简介^2',
-                    'About the game^2',
+                    'About the game^2',  # 添加英文简介字段
                     '游戏类别^2',
                     '玩法类型^2',
                     '游戏标签^2',
                     '开发商',
-                    'Developers',
+                    'Developers',  # 添加英文开发商字段
                     '发行商',
-                    'Publishers',
+                    'Publishers',  # 添加英文发行商字段
                     '媒体评价',
-                    'Reviews'
+                    'Reviews'  # 添加英文评价字段
                 ]
-                append_condition('must',{
+
+                body['query']['bool']['must'].append({
                     'multi_match': {
                         'query': query_string,
                         'fields': search_fields,
@@ -359,6 +156,177 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                         'operator': 'or'
                     }
                 })
+            else:
+                # 高级搜索模式：解析搜索表达式
+                if query.startswith('(#'):
+                    conditions = []
+                    current_pos = 0
+
+                    # 定义字段映射
+                    if lang == 'en':
+                        # 英文字段映射
+                        field_mapping = {
+                            'Name': 'Name',
+                            'name': 'Name',
+                            'About': 'About the game',
+                            'about': 'About the game',
+                            'Reviews': 'Reviews',
+                            'reviews': 'Reviews',
+                            'Developers': 'Developers',
+                            'developers': 'Developers',
+                            'Publishers': 'Publishers',
+                            'publishers': 'Publishers',
+                            # 数值字段保持中文
+                            '价格': '价格',
+                            'price': '价格',
+                            '好评率': '好评率',
+                            'rating': '好评率',
+                            '评论总数': '评论总数',
+                            'reviews_count': '评论总数',
+                            '最高同时在线人数': '最高同时在线人数',
+                            'peak_ccu': '最高同时在线人数',
+                            '发布日期': '发布日期',
+                            'release_date': '发布日期'
+                        }
+                    else:
+                        # 中文字段映射
+                        field_mapping = {
+                            '名称': '名称',
+                            'name': '名称',
+                            '简介': '游戏简介',
+                            'about': '游戏简介',
+                            '评价': '媒体评价',
+                            'reviews': '媒体评价',
+                            '开发商': '开发商',
+                            'developers': '开发商',
+                            '发行商': '发行商',
+                            'publishers': '发行商',
+                            '价格': '价格',
+                            'price': '价格',
+                            '好评率': '好评率',
+                            'rating': '好评率',
+                            '评论总数': '评论总数',
+                            'reviews_count': '评论总数',
+                            '最高同时在线人数': '最高同时在线人数',
+                            'peak_ccu': '最高同时在线人数',
+                            '发布日期': '发布日期',
+                            'release_date': '发布日期'
+                        }
+
+                    while current_pos < len(query):
+                        if query[current_pos:].startswith('(#'):
+                            next_condition = query.find('(#', current_pos + 2)
+                            if next_condition == -1:
+                                condition = query[current_pos:]
+                            else:
+                                condition = query[current_pos:next_condition]
+                            
+                            if ')=' in condition:
+                                field = condition[2:condition.find(')=')]
+                                value = condition[condition.find(')=')+2:].strip()
+                                # 根据语言选择字段
+                                search_field = field_mapping.get(field, field)
+
+                                # 处理数值字段
+                                if search_field in ['价格', '好评率', '评论总数', '最高同时在线人数']:
+                                    try:
+                                        if search_field == '好评率':
+                                            # 如果输入的是百分比形式，转换为小数
+                                            numeric_value = float(value)
+                                            if numeric_value > 1:
+                                                numeric_value = numeric_value / 100
+                                        else:
+                                            numeric_value = float(value)
+                                        body['query']['bool']['must'].append({
+                                            'match': {search_field: str(numeric_value)}
+                                        })
+                                    except ValueError:
+                                        logger.warning(f"Invalid numeric value for {search_field}: {value}")
+                                        continue
+                                else:
+                                    body['query']['bool']['must'].append({
+                                        'match': {search_field: value}
+                                    })
+
+                            elif ')>' in condition:
+                                field = condition[2:condition.find(')>')]
+                                value = condition[condition.find(')>')+2:].strip()
+                                # 处理数值字段
+                                search_field = field_mapping.get(field, field)
+                                try:
+                                    if search_field == '好评率':
+                                        numeric_value = float(value)
+                                        if numeric_value > 1:
+                                            numeric_value = numeric_value / 100
+                                    else:
+                                        numeric_value = float(value)
+                                    body['query']['bool']['filter'].append({
+                                        'range': {search_field: {'gt': numeric_value}}
+                                    })
+                                except ValueError:
+                                    logger.warning(f"Invalid numeric value for {search_field}: {value}")
+                                    continue
+
+                            elif ')<' in condition:
+                                field = condition[2:condition.find(')<')]
+                                value = condition[condition.find(')<')+2:].strip()
+                                # 处理数值字段
+                                search_field = field_mapping.get(field, field)
+                                try:
+                                    if search_field == '好评率':
+                                        numeric_value = float(value)
+                                        if numeric_value > 1:
+                                            numeric_value = numeric_value / 100
+                                    else:
+                                        numeric_value = float(value)
+                                    body['query']['bool']['filter'].append({
+                                        'range': {search_field: {'lt': numeric_value}}
+                                    })
+                                except ValueError:
+                                    logger.warning(f"Invalid numeric value for {search_field}: {value}")
+                                    continue
+
+                            elif ')>=' in condition:
+                                field = condition[2:condition.find(')>=')]
+                                value = condition[condition.find(')>=')+3:].strip()
+                                # 处理数值字段
+                                search_field = field_mapping.get(field, field)
+                                try:
+                                    if search_field == '好评率':
+                                        numeric_value = float(value)
+                                        if numeric_value > 1:
+                                            numeric_value = numeric_value / 100
+                                    else:
+                                        numeric_value = float(value)
+                                    body['query']['bool']['filter'].append({
+                                        'range': {search_field: {'gte': numeric_value}}
+                                    })
+                                except ValueError:
+                                    logger.warning(f"Invalid numeric value for {search_field}: {value}")
+                                    continue
+
+                            elif ')<=' in condition:
+                                field = condition[2:condition.find(')<=')]
+                                value = condition[condition.find(')<=')+3:].strip()
+                                # 处理数值字段
+                                search_field = field_mapping.get(field, field)
+                                try:
+                                    if search_field == '好评率':
+                                        numeric_value = float(value)
+                                        if numeric_value > 1:
+                                            numeric_value = numeric_value / 100
+                                    else:
+                                        numeric_value = float(value)
+                                    body['query']['bool']['filter'].append({
+                                        'range': {search_field: {'lte': numeric_value}}
+                                    })
+                                except ValueError:
+                                    logger.warning(f"Invalid numeric value for {search_field}: {value}")
+                                    continue
+                            
+                            current_pos = next_condition if next_condition != -1 else len(query)
+                        else:
+                            current_pos += 1
 
         # 处理筛选条件
         if filters:
@@ -369,7 +337,7 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
             if 'maxPrice' in filters:
                 price_range['lte'] = filters['maxPrice']
             if price_range:
-                append_condition('filter',{
+                body['query']['bool']['filter'].append({
                     'range': {'价格': price_range}
                 })
 
@@ -380,13 +348,13 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
             if 'toDate' in filters:
                 date_range['lte'] = filters['toDate']
             if date_range:
-                append_condition('filter',{
+                body['query']['bool']['filter'].append({
                     'range': {'发布日期': date_range}
                 })
 
             # 游戏类型筛选
             if 'types' in filters and filters['types']:
-                append_condition('must',{
+                body['query']['bool']['must'].append({
                     'bool': {
                         'must': [{'term': {'游戏类别': game_type}} for game_type in filters['types']]
                     }
@@ -403,13 +371,13 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                     elif platform.lower() == 'linux':
                         platform_conditions.append({'term': {'支持Linux': True}})
                 if platform_conditions:
-                    append_condition('filter',{
+                    body['query']['bool']['filter'].append({
                         'bool': {'should': platform_conditions, 'minimum_should_match': 1}
                     })
 
             # 语言筛选
             if 'languages' in filters and filters['languages']:
-                append_condition('must',{
+                body['query']['bool']['must'].append({
                     'bool': {
                         'must': [{'term': {'支持语言': language}} for language in filters['languages']]
                     }
@@ -417,7 +385,7 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
 
             # 标签筛选
             if 'tags' in filters and filters['tags']:
-                append_condition('must',{
+                body['query']['bool']['must'].append({
                     'bool': {
                         'must': [{'term': {'游戏标签': tag}} for tag in filters['tags']]
                     }
@@ -425,19 +393,19 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
 
             # 好评率筛选
             if 'minRating' in filters:
-                append_condition('must',{
+                body['query']['bool']['filter'].append({
                     'range': {'好评率': {'gte': filters['minRating']}}
                 })
 
             # 评论数筛选
             if 'minReviews' in filters:
-                append_condition('must',{
+                body['query']['bool']['filter'].append({
                     'range': {'评论总数': {'gte': filters['minReviews']}}
                 })
 
             # 同时在线人数筛选
             if 'minPeakCCU' in filters:
-                append_condition('must',{
+                body['query']['bool']['filter'].append({
                     'range': {'最高同时在线人数': {'gte': filters['minPeakCCU']}}
                 })
 
@@ -467,6 +435,7 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
         games = []
         for hit in hits:
             game = hit['_source']
+            
             # 根据语言选择名称
             if lang == 'en' and 'Name' in game:
                 game['名称'] = game['Name']
@@ -494,6 +463,7 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                 game['header_image'] = game['展示图片链接']
             
             games.append(game)
+        
         return {
             'games': games,
             'total': total
@@ -502,7 +472,6 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
         raise e
-
 
 @app.route('/')
 def home():
@@ -612,27 +581,17 @@ def search():
             selected_filters['minPeakCCU'] = int(min_peak_ccu)
         except ValueError:
             pass
-    # 处理 vector_query 参数
-    vector_query = request.args.get('vector_query')
-    if vector_query:
-        try:
-            vector_query = json.loads(vector_query)  # 将 JSON 字符串解析为 Python 对象
-            if isinstance(vector_query, dict):
-                vector_query = [(vector_query['field'], vector_query['weight'], vector_query['text'])]
-            elif isinstance(vector_query, list):
-                vector_query = [(item['field'], item['weight'], item['text']) for item in vector_query]
-            else:
-                vector_query = None
-        except (json.JSONDecodeError, KeyError, TypeError):
-            vector_query = None
+    
     # 获取排序方式
     sort = request.args.get('sort', 'relevance')
     
     # 获取分页参数
     page = int(request.args.get('page', 1))
     page_size = int(request.args.get('page_size', 20))
+    
     # 执行搜索
-    results = search_games(query, filters, sort, page, page_size, mode, lang,vector_query)
+    results = search_games(query, filters, sort, page, page_size, mode, lang)
+    
     return render_template('search.html', 
                          lang=lang, 
                          query=query, 
@@ -643,8 +602,7 @@ def search():
                          results=results['games'],
                          total=results['total'],
                          page=page,
-                         page_size=page_size,
-                         vector_query=vector_query)
+                         page_size=page_size)
 
 @app.route('/api/search', methods=['POST'])
 def api_search():
@@ -657,20 +615,7 @@ def api_search():
         page_size = int(data.get('page_size', 20))
         mode = data.get('mode', 'advanced')
         lang = data.get('lang', 'zh')
-        vector_query=data.get('vector_query','')
-        try:
-            # vector_query 可能是嵌套列表形式: [["field", weight, "text"], ...]
-            if isinstance(vector_query, str):
-                vector_query = json.loads(vector_query)
-            if isinstance(vector_query, list) and all(isinstance(item, list) and len(item) == 3 for item in vector_query):
-                vector_query = [(item[0], item[1], item[2]) for item in vector_query]
-            elif isinstance(vector_query, dict):
-                vector_query = [(vector_query['field'], vector_query['weight'], vector_query['text'])]
-            else:
-                vector_query = None
-        except (json.JSONDecodeError, KeyError, TypeError):
-            print('-'*50)
-            vector_query = None
+        
         # 使用统一的search_games函数
         results = search_games(
             query=query,
@@ -679,8 +624,7 @@ def api_search():
             page=page,
             page_size=page_size,
             mode=mode,
-            lang=lang,
-            vector_query=vector_query
+            lang=lang
         )
         
         return jsonify({
@@ -690,7 +634,6 @@ def api_search():
         })
         
     except Exception as e:
-        print('xxxx')
         logger.error(f"Search error: {str(e)}")
         return jsonify({
             'status': 'error',
@@ -700,99 +643,182 @@ def api_search():
 @app.route('/api/popular_games', methods=['POST'])
 def popular_games():
     try:
-        # 定义查询条件：好评率高且评论数量足够多
-        lang = request.args.get('lang', 'zh')
-        body = {
-            'query': {
-                'bool': {
-                    'must': [
-                        {'range': {'评论总数': {'gte': 50000}}},  # 评论数大于等于 50000
-                        {'range': {'好评率': {'gte': 0.7}}}      # 好评率大于等于 0.7
-                    ]
-                }
-            },
-            'sort': [
-                {'好评率': 'desc'},  # 按好评率降序
-                {'最高同时在线人数': 'desc'}  # 按最高同时在线人数降序
-            ],
-            'size': 10,  # 只获取前 10 个结果
-            '_source': [
-                '游戏应用ID', '名称', '价格', '展示图片链接', '好评率'
-            ]
-        }
-
-        # 从 Elasticsearch 获取数据
-        response = es.search(index='steam_games', body=body)
-        hits = response['hits']['hits']
-
-        # 格式化返回数据
-        games = [{
-            'appId': hit['_source']['游戏应用ID'],
-            'name': hit['_source']['Name'] if lang == 'en' else hit['_source']['名称'],
-            'price': hit['_source']['价格'],
-            'headerImage': hit['_source']['展示图片链接'],
-            'posRatio': hit['_source']['好评率'],
-        } for hit in hits]
-
+        # 获取好评率高且评论数量足够多的游戏
+        min_reviews = 50000  # 设置最低评论数门槛
+        popular_games = [g for g in DEMO_GAMES if g['评论总数'] >= min_reviews]
+        games = sorted(popular_games, 
+                      key=lambda x: (x['好评率'], x['最高同时在线人数']), 
+                      reverse=True)[:10]
+        
         return jsonify({
             'status': 'success',
-            'games': games
+            'games': [{
+                'appId': game['游戏应用ID'],
+                'name': game['名称'],
+                'price': game['价格'],
+                'headerImage': game['header_image'],
+                'posRatio': game['好评率'],
+                'shortDescription': game['媒体评价']
+            } for game in games]
         })
-
+        
     except Exception as e:
-        logger.error(f"Error fetching popular games: {str(e)}")
+        print(f"Error fetching popular games: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
 @app.route('/api/personalized_games', methods=['POST'])
 def personalized_games():
     try:
-        # 定义查询条件：最近发布且好评率高
-        lang = request.args.get('lang', 'zh')
-        body = {
-            'query': {
-                'bool': {
-                    'must': [
-                        {'range': {'好评率': {'gte': 0.7}}},  # 好评率大于等于 0.7
-                    ]
-                }
-            },
-            'sort': [
-                {'发布日期': 'desc'}  # 按发布日期降序
-            ],
-            'size': 10,  # 只获取前 10 个结果
-            '_source': [
-                '游戏应用ID', '名称', '价格', '展示图片链接', '好评率'
-            ]
-        }
-
-        # 从 Elasticsearch 获取数据
-        response = es.search(index='steam_games', body=body)
-        hits = response['hits']['hits']
-
-        # 格式化返回数据
-        games = [{
-            'appId': hit['_source']['游戏应用ID'],
-            'name': hit['_source']['Name'] if lang == 'en' else hit['_source']['名称'],
-            'price': hit['_source']['价格'],
-            'headerImage': hit['_source']['展示图片链接'],
-            'posRatio': hit['_source']['好评率'],
-        } for hit in hits]
-
+        # 获取最近发布的高评分游戏
+        min_rating = 0.7  # 设置最低好评率门槛
+        recent_games = sorted([g for g in DEMO_GAMES if g['好评率'] >= min_rating],
+                            key=lambda x: x['发布日期'],
+                            reverse=True)[:10]
+        
         return jsonify({
             'status': 'success',
-            'games': games
+            'games': [{
+                'appId': game['游戏应用ID'],
+                'name': game['名称'],
+                'price': game['价格'],
+                'headerImage': game['header_image'],
+                'posRatio': game['好评率'],
+                'shortDescription': game['媒体评价']
+            } for game in recent_games]
         })
-
+        
     except Exception as e:
-        logger.error(f"Error fetching personalized games: {str(e)}")
+        print(f"Error fetching personalized games: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+def build_filter_query(filters):
+    must_clauses = []
+    filter_clauses = []
+
+    # 价格范围筛选
+    if 'minPrice' in filters or 'maxPrice' in filters:
+        price_range = {}
+        if 'minPrice' in filters:
+            price_range['gte'] = filters['minPrice']
+        if 'maxPrice' in filters:
+            price_range['lte'] = filters['maxPrice']
+        filter_clauses.append({"range": {"价格": price_range}})
+
+    # 发布日期筛选
+    if 'fromDate' in filters or 'toDate' in filters:
+        date_range = {}
+        if 'fromDate' in filters:
+            date_range['gte'] = filters['fromDate']
+        if 'toDate' in filters:
+            date_range['lte'] = filters['toDate']
+        filter_clauses.append({"range": {"发布日期": date_range}})
+
+    # 游戏类型筛选
+    if 'types' in filters and filters['types']:
+        must_clauses.append({
+            "bool": {
+                "should": [
+                    {"term": {"游戏类别": game_type}} for game_type in filters['types']
+                ],
+                "minimum_should_match": 1
+            }
+        })
+    # 平台筛选
+    if 'platforms' in filters and filters['platforms']:
+        platform_conditions = []
+        for platform in filters['platforms']:
+            if platform.lower() == 'windows':
+                platform_conditions.append({"term": {"支持Windows": True}})
+            elif platform.lower() == 'mac':
+                platform_conditions.append({"term": {"支持Mac": True}})
+            elif platform.lower() == 'linux':
+                platform_conditions.append({"term": {"支持Linux": True}})
+        if platform_conditions:
+            filter_clauses.append({
+                "bool": {"should": platform_conditions, "minimum_should_match": 1}
+            })
+
+    # 标签筛选
+    if 'tags' in filters and filters['tags']:
+        must_clauses.append({
+            "bool": {
+                "must": [{"term": {"游戏标签": tag}} for tag in filters['tags']]
+            }
+        })
+
+    return {
+        "query": {
+            "bool": {
+                "must": must_clauses,
+                "filter": filter_clauses
+            }
+        },
+        "size": 0,
+        "aggs": {
+            "game_types": {"terms": {"field": "游戏类别.keyword", "size": 100}},
+            "tags": {"terms": {"field": "游戏标签.keyword", "size": 100}},
+            "release_years": {
+                "date_histogram": {"field": "发布日期", "calendar_interval": "year"}
+            },
+            "price_ranges": {
+                "range": {
+                    "field": "价格",
+                    "ranges": [
+                        {"to": 0, "key": "free"},
+                        {"from": 0, "to": 10, "key": "under_10"},
+                        {"from": 10, "to": 30, "key": "10_to_30"},
+                        {"from": 30, "to": 60, "key": "30_to_60"},
+                        {"from": 60, "key": "above_60"}
+                    ]
+                }
+            }
+        }
+    }
 @app.route('/api/categories', methods=['POST'])
 def get_categories():
     try:
-        # 收集所有类别、标签和发布年份
-        genres = {}  # 使用字典来统计数量
-        tags = {}
-        years = {}
+        data = request.get_json()
+        filters = data.get('filters', {})
+
+        # 构建包含筛选条件的查询体
+        body = build_filter_query(filters)
+
+        # 添加聚合规则
+        body["aggs"] = {
+            "game_types": {"terms": {"field": "游戏类别.keyword", "size": 100}},
+            "tags": {"terms": {"field": "游戏标签.keyword", "size": 100}},
+            "release_years": {"date_histogram": {"field": "发布日期", "calendar_interval": "year"}},
+            "price_ranges": {
+                "range": {
+                    "field": "价格",
+                    "ranges": [
+                        {"to": 0, "key": "free"},
+                        {"from": 0, "to": 10, "key": "under_10"},
+                        {"from": 10, "to": 30, "key": "10_to_30"},
+                        {"from": 30, "to": 60, "key": "30_to_60"},
+                        {"from": 60, "key": "above_60"}
+                    ]
+                }
+            }
+        }
+
+        # 执行查询
+        response = es.search(index='steam_games', body=body)
+        aggregations = response.get('aggregations', {})
+
+        # 使用聚合结果
+        genres = [{'id': b['key'], 'name': b['key'], 'count': b['doc_count']} 
+                  for b in aggregations.get('game_types', {}).get('buckets', [])]
+
+        tags = [{'id': b['key'], 'name': b['key'], 'count': b['doc_count']} 
+                for b in aggregations.get('tags', {}).get('buckets', [])]
+
+        years = []
+        year_buckets = aggregations.get('release_years', {}).get('buckets', [])
+        for bucket in year_buckets:
+            year = int(str(bucket['key_as_string'])[:4])
+            years.append({'year': year, 'count': bucket['doc_count']})
+
         price_ranges = {
             'free': 0,
             'under_10': 0,
@@ -800,44 +826,19 @@ def get_categories():
             '30_to_60': 0,
             'above_60': 0
         }
-        
-        for game in DEMO_GAMES:
-            # 统计游戏类型
-            for genre in game['玩法类型']:
-                genres[genre] = genres.get(genre, 0) + 1
-            
-            # 统计标签
-            for tag in game['游戏标签']:
-                tags[tag] = tags.get(tag, 0) + 1
-            
-            # 统计发布年份
-            year = datetime.strptime(game['发布日期'], '%Y-%m-%d').year
-            years[year] = years.get(year, 0) + 1
-            
-            # 统计价格区间
-            price = game['价格']
-            if price == 0:
-                price_ranges['free'] += 1
-            elif price < 10:
-                price_ranges['under_10'] += 1
-            elif price < 30:
-                price_ranges['10_to_30'] += 1
-            elif price < 60:
-                price_ranges['30_to_60'] += 1
-            else:
-                price_ranges['above_60'] += 1
 
-        # 返回分类数据，按数量从高到低排序
+        price_data = aggregations.get('price_ranges', {}).get('buckets', [])
+        for item in price_data:
+            key = item['key']
+            count = item['doc_count']
+            if key in price_ranges:
+                price_ranges[key] = count
+
         return jsonify({
             'status': 'success',
-            'gameTypes': sorted([{'id': genre, 'name': genre, 'count': count} 
-                        for genre, count in genres.items()],
-                        key=lambda x: x['count'], reverse=True),
-            'tags': sorted([{'id': tag, 'name': tag, 'count': count} 
-                    for tag, count in tags.items()],
-                    key=lambda x: x['count'], reverse=True),
-            'years': [{'year': year, 'count': count} 
-                    for year, count in sorted(years.items())],
+            'gameTypes': sorted(genres, key=lambda x: x['count'], reverse=True),
+            'tags': sorted(tags, key=lambda x: x['count'], reverse=True),
+            'years': sorted(years, key=lambda x: x['year']),
             'priceRanges': [
                 {'id': 'free', 'name': '免费游戏', 'count': price_ranges['free']},
                 {'id': 'under_10', 'name': '¥10以下', 'count': price_ranges['under_10']},
@@ -846,52 +847,127 @@ def get_categories():
                 {'id': 'above_60', 'name': '¥60以上', 'count': price_ranges['above_60']}
             ]
         })
-        
+
     except Exception as e:
         print(f"Error fetching categories: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/api/ai_chat', methods=['POST'])
 @app.route('/api/ai_chat', methods=['POST'])
 def ai_chat():
     data = request.json
-    history = data.get('history', [])  # 接收完整的对话历史
+    message = data.get('message', '')
     mode = data.get('mode', 'chat')
     lang = data.get('lang', 'zh')
     
     try:
         if mode == 'chat':
-            reply = generate_response_with_prompt(history=history,lang=lang,mode=mode)
+            # 模拟AI聊天推荐
+            keywords = jieba.lcut(message) if lang == 'zh' else message.lower().split()
+            recommendations = []
+            
+            for game in DEMO_GAMES:
+                # 简单的关键词匹配
+                score = 0
+                for keyword in keywords:
+                    if keyword in game['名称'].lower() or \
+                       keyword in ' '.join(game['游戏标签']).lower() or \
+                       keyword in ' '.join(game['玩法类型']).lower():
+                        score += 1
+                if score > 0:
+                    recommendations.append({
+                        'appId': game['游戏应用ID'],
+                        'name': game['名称'],
+                        'price': game['价格'],
+                        'headerImage': game['header_image'],
+                        'posRatio': game['好评率'],
+                        'shortDescription': game['媒体评价']
+                    })
+            
+            if not recommendations:
+                # 如果没有匹配的游戏，返回热门游戏
+                recommendations = sorted(
+                    [{
+                        'appId': game['游戏应用ID'],
+                        'name': game['名称'],
+                        'price': game['价格'],
+                        'headerImage': game['header_image'],
+                        'posRatio': game['好评率'],
+                        'shortDescription': game['媒体评价']
+                    } for game in DEMO_GAMES],
+                    key=lambda x: x['posRatio'],
+                    reverse=True
+                )[:5]
+            
+            reply = "根据您的描述，我为您推荐以下游戏：" if lang == 'zh' else "Based on your description, I recommend these games:"
+            
             return jsonify({
                 'status': 'success',
                 'reply': reply,
+                'recommendations': recommendations[:5]
             })
         else:
             # 生成搜索表达式
-            reply = generate_response_with_prompt(history=history,lang=lang,mode=mode)
+            search_expr = ' '.join(jieba.lcut(message)) if lang == 'zh' else message
             return jsonify({
                 'status': 'success',
-                'summary': reply['summary'],
-                'query': reply['query'],
-                'filters': reply['filters'],
-                'vector_query': reply['vector_query']
+                'searchExpression': search_expr
             })
             
     except Exception as e:
         print(f"Error in AI chat: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
-    
-@app.route('/game/<app_id>')
+
+@app.route('/game/<int:app_id>')
 def game_detail(app_id):
     lang = request.args.get('lang', 'zh')
-    
-    # 查找游戏
-    game = next((g for g in DEMO_GAMES if g['游戏应用ID'] == app_id), None)
-    
-    if not game:
+
+    try:
+        # 1. 检查文档是否存在
+        if not es.exists(index='steam_games', id=app_id):
+            logger.warning(f"Game with ID {app_id} does not exist.")
+            return render_template('404.html', lang=lang), 404
+
+        # 2. 获取游戏详情
+        result = es.get(index='steam_games', id=app_id)
+
+        # 3. 提取数据（优先使用 _source）
+        game = result.get('_source', {})
+        if not game and 'fields' in result:
+            game = result['fields']  # 尝试从 fields 获取字段值
+
+        if not game:
+            logger.error(f"Game {app_id} has no usable data.")
+            return render_template('404.html', lang=lang), 404
+
+        # 4. 多语言字段兼容处理
+        if lang == 'en':
+            game['名称'] = game.get('Name') or game.get('名称', 'N/A')
+            game['游戏简介'] = game.get('About the game') or game.get('游戏简介', 'No description available.')
+            game['媒体评价'] = game.get('Reviews') or game.get('媒体评价', 'No reviews available.')
+            game['开发商'] = game.get('Developers') or game.get('开发商', 'Unknown')
+            game['发行商'] = game.get('Publishers') or game.get('发行商', 'Unknown')
+
+        # 5. 图片路径兼容处理
+        game['header_image'] = game.get('Header image') or game.get('展示图片链接') or '/static/images/no-image.png'
+
+        # 6. 平台字段补全
+        game['支持Windows'] = bool(game.get('支持Windows', False))
+        game['支持Mac'] = bool(game.get('支持Mac', False))
+        game['支持Linux'] = bool(game.get('支持Linux', False))
+
+        # 7. 系统需求字段补全
+        if '系统需求' not in game:
+            game['系统需求'] = {}
+        if '最低配置' not in game['系统需求']:
+            game['系统需求']['最低配置'] = None
+        if '推荐配置' not in game['系统需求']:
+            game['系统需求']['推荐配置'] = None
+
+        # 8. 渲染页面
+        return render_template('game_detail.html', game=game, lang=lang)
+
+    except Exception as e:
+        logger.error(f"Error fetching game detail from Elasticsearch: {str(e)}")
         return render_template('404.html', lang=lang), 404
-    
-    return render_template('game_detail.html', game=game, lang=lang)
 
 @app.route('/api/search_stats', methods=['POST'])
 def get_search_stats():
@@ -930,6 +1006,7 @@ def get_search_stats():
     except Exception as e:
         print(f"Error getting search stats: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 @app.route('/advanced_search')
 def advanced_search():
