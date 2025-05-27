@@ -122,9 +122,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // 修改执行搜索函数
     window.performSearch = async function() {
         try {
+            console.log('你好')
             const query = document.getElementById('searchInput').value.trim();
             const filters = getFilters();
             const sort = document.getElementById('sortBy').value;
+            const urlParams = new URLSearchParams(window.location.search);
+            const vector_query = urlParams.get('vector_query') || null
             
             const response = await fetch('/api/search', {
                 method: 'POST',
@@ -136,7 +139,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     filters: filters,
                     sort: sort,
                     page: currentPage,
-                    page_size: pageSize
+                    page_size: pageSize,
+                    vector_query: vector_query,
                 })
             });
 
@@ -150,9 +154,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 updatePagination(data.total);
                 
                 // 更新URL，但不刷新页面
-                const newUrl = new URL(window.location.href);
-                newUrl.searchParams.set('q', query);
-                window.history.pushState({}, '', newUrl);
+                // const newUrl = new URL(window.location.href);
+                // newUrl.searchParams.set('q', query);
+                //  if (queryVector) newUrl.searchParams.set('query_vector', queryVector); // 更新URL中的 query_vector
+                // window.history.pushState({}, '', newUrl);
             }
         } catch (error) {
             console.error('Search error:', error);

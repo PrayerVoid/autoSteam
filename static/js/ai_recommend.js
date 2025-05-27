@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let currentMode = 'chat'; // 'chat' or 'search'
     let isProcessing = false;
+    let chatHistory = []; // 用于存储完整的对话历史
 
     // 切换模式
     modeBtns.forEach(btn => {
@@ -44,6 +45,17 @@ document.addEventListener('DOMContentLoaded', function() {
         userInput.value = '';
         addUserMessage(message);
 
+    // 添加假的 AI 消息框，显示加载动画
+const loadingMessageDiv = document.createElement('div');
+loadingMessageDiv.className = 'message ai-message loading';
+loadingMessageDiv.innerHTML = `
+    <div class="message-content">
+        <div class="loading-spinner"></div>
+    </div>
+`;
+chatMessages.appendChild(loadingMessageDiv);
+chatMessages.scrollTop = chatMessages.scrollHeight;
+
         try {
             const response = await fetch('/api/ai_chat', {
                 method: 'POST',
@@ -51,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    message,
+                    history: chatHistory, // 发送完整的对话历史
                     mode: currentMode,
                     lang: window.LANG
                 })
@@ -60,30 +72,71 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!response.ok) throw new Error('AI response failed');
 
             const data = await response.json();
+
+            loadingMessageDiv.remove();
             
             if (currentMode === 'chat') {
                 // 显示AI回复
                 addAIMessage(data.reply);
+
                 
-                // 如果有推荐游戏，显示在右侧
-                if (data.recommendations?.length > 0) {
-                    showRecommendations(data.recommendations);
-                }
             } else {
                 // 搜索模式：显示生成的搜索表达式
-                addAIMessage(window.LANG === 'zh' 
-                    ? `我已根据你的描述生成以下搜索表达式：\n\`${data.searchExpression}\``
-                    : `I've generated the following search expression based on your description:\n\`${data.searchExpression}\``
+                addAIMessage(data.summary
                 );
 
-                // 添加"执行搜索"按钮
-                const searchButton = document.createElement('button');
-                searchButton.textContent = window.LANG === 'zh' ? '执行搜索' : 'Execute Search';
-                searchButton.classList.add('execute-search-btn');
-                searchButton.onclick = () => {
-                    window.location.href = `/search?q=${encodeURIComponent(data.searchExpression)}&lang=${window.LANG}`;
-                };
-                chatMessages.appendChild(searchButton);
+                // 存储后端返回的 query, filters 和 vector_query
+    const query = data.query;
+    const filters = data.filters;
+    const vectorQuery = data.vector_query;
+
+    // 拆解 filters 为 /search 路由支持的格式
+    const searchParams = new URLSearchParams();
+    if (filters.types) {
+        filters.types.forEach(type => searchParams.append('types', type));
+    }
+    if (filters.platforms) {
+        filters.platforms.forEach(platform => searchParams.append('platforms', platform));
+    }
+    if (filters.languages) {
+        filters.languages.forEach(language => searchParams.append('languages', language));
+    }
+    if (filters.tags) {
+        filters.tags.forEach(tag => searchParams.append('tags', tag));
+    }
+    if (filters.minPrice !== undefined) {
+        searchParams.append('minPrice', filters.minPrice);
+    }
+    if (filters.maxPrice !== undefined) {
+        searchParams.append('maxPrice', filters.maxPrice);
+    }
+    if (filters.fromDate) {
+        searchParams.append('fromDate', filters.fromDate);
+    }
+    if (filters.toDate) {
+        searchParams.append('toDate', filters.toDate);
+        }
+    if (filters.minRating !== undefined) {
+        searchParams.append('minRating', filters.minRating);
+    }
+    if (filters.minReviews !== undefined) {
+        searchParams.append('minReviews', filters.minReviews);
+    }
+    if (filters.minPeakCCU !== undefined) {
+        searchParams.append('minPeakCCU', filters.minPeakCCU);
+    }
+
+    // 添加"执行搜索"按钮
+    const searchButton = document.createElement('button');
+    searchButton.textContent = window.LANG === 'zh' ? '执行搜索' : 'Execute Search';
+    searchButton.classList.add('execute-search-btn');
+    searchButton.onclick = () => {
+        // 将 query, filters 和 vector_query 绑定到搜索 URL
+        const searchUrl = `/search?q=${encodeURIComponent(query)}&${searchParams.toString()}&vector_query=${encodeURIComponent(JSON.stringify(vectorQuery))}&lang=${window.LANG}`;
+        window.location.href = searchUrl;
+    };
+    chatMessages.appendChild(searchButton);
+
             }
         } catch (error) {
             console.error('AI chat error:', error);
@@ -99,6 +152,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 添加用户消息
     function addUserMessage(message) {
+        chatHistory.push({'role':'user','content':message})
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message user-message';
         messageDiv.innerHTML = `
@@ -109,6 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 添加AI消息
     function addAIMessage(message) {
+        chatHistory.push({'role':'system','content':message})
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message ai-message';
         messageDiv.innerHTML = `
@@ -117,27 +172,6 @@ document.addEventListener('DOMContentLoaded', function() {
         chatMessages.appendChild(messageDiv);
     }
 
-    // 显示推荐游戏
-    function showRecommendations(games) {
-        recommendationResults.innerHTML = '';
-        games.forEach(game => {
-            const gameCard = document.createElement('div');
-            gameCard.className = 'game-card';
-            gameCard.innerHTML = `
-                <h3>${escapeHtml(game.name)}</h3>
-                <div class="game-info">
-                    <p class="release-date">${game.release_date}</p>
-                    <p class="price">${formatPrice(game.price)}</p>
-                    <p class="rating">⭐ ${game.rating.toFixed(1)}</p>
-                </div>
-                <p class="description">${escapeHtml(game.description || '')}</p>
-                <a href="https://store.steampowered.com/app/${game.appid}" target="_blank" class="view-on-steam">
-                    ${window.LANG === 'zh' ? '在Steam上查看' : 'View on Steam'}
-                </a>
-            `;
-            recommendationResults.appendChild(gameCard);
-        });
-    }
 
     // 格式化消息（支持简单的markdown语法）
     function formatMessage(message) {

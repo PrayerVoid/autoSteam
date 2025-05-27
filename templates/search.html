@@ -410,6 +410,8 @@
             const query = document.getElementById('searchInput').value.trim();
             const filters = getFilters();
             const sort = document.getElementById('sortBy').value;
+            const urlParams = new URLSearchParams(window.location.search);
+            const vector_query = urlParams.get('vector_query') || null
             
             // 如果是高级检索模式，转换字段名
             if (currentMode === 'advanced' && query.includes('(#')) {
@@ -449,7 +451,8 @@
                             page: currentPage,
                             page_size: pageSize,
                             mode: currentMode,
-                            lang: lang
+                            lang: lang,
+                            vector_query:vector_query
                         })
                     });
 
@@ -478,6 +481,7 @@
                         if (processedQuery) newUrl.searchParams.set('q', processedQuery);
                         if (currentMode) newUrl.searchParams.set('mode', currentMode);
                         if (sort) newUrl.searchParams.set('sort', sort);
+                        if (vector_query) newUrl.searchParams.set('vector_query',vector_query)
                         
                         // 添加筛选参数，使用AND逻辑
                         Object.entries(filters).forEach(([key, value]) => {

@@ -1,15 +1,20 @@
 from flask import Flask, render_template, jsonify, request
 from datetime import datetime
+import json
 import jieba
 from mock_data import DEMO_GAMES
 from elasticsearch import Elasticsearch
 import logging
+from prompts import generate_response_with_prompt
+from embeddings import get_embeddings
 
 app = Flask(__name__)
 
 # 配置日志
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+
 
 # 设置默认支持的语言
 SUPPORTED_LANGUAGES = ['zh', 'en']
@@ -88,7 +93,7 @@ def validate_filters(filters):
     
     return validated_filters
 
-def search_games(query='', filters=None, sort='relevance', page=1, page_size=20, mode='advanced', lang='zh'):
+def search_games(query='', filters=None, sort='relevance', page=1, page_size=20, mode='advanced', lang='zh',vector_query=None):
     """使用Elasticsearch搜索游戏"""
     try:
         # 构建基础查询
@@ -119,7 +124,42 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                 '支持Windows', '支持Mac', '支持Linux'
             ]
         }
-
+         # 添加向量查询逻辑
+        if vector_query:
+            script_score_query = {
+                    'query': {
+                         'bool':{
+                             'must':[],
+                             'filter':[]},
+                    },
+                    'script': {
+                        'source': "double totalScore = 0; for (int i = 0; i < params.vector_queries.size(); i++) { def vector_query = params.vector_queries[i]; String field = vector_query.get(\"field\"); double weight = vector_query.get(\"weight\"); def query_vector = vector_query.get(\"vector\"); double cosine_similarity = cosineSimilarity( query_vector,field); totalScore += weight * cosine_similarity; } return totalScore;",
+                        'params': {
+                            'vector_queries': []
+                        }
+                    }}
+                
+         # 计算嵌入向量并填充参数
+            # vector_query: List of (field, weight, text)
+            texts = [text for _, _, text in vector_query]
+            embeddings = get_embeddings(texts=texts)
+            for (field, weight, _), embedding in zip(vector_query, embeddings):
+                script_score_query['script']['params']['vector_queries'].append({
+                    'field': field,
+                    'weight': weight,
+                    'vector': embedding["embedding"][0]
+                })
+            # 将 script_score_query 嵌入到 body['query'] 中，而不是覆盖
+            body['query']['script_score'] = script_score_query
+            # 清除 bool 字段，避免与 script_score 冲突
+            if 'bool' in body['query']:
+                del body['query']['bool']
+        def append_condition(field,value):
+                if not vector_query:
+                    body['query']['bool'][field].append(value)
+                else:
+                    body['query']['script_score']['query']['bool'][field].append(value)
+                return
         def handle_advanced_query(query, lang):
             conditions = []
             current_pos = 0
@@ -182,22 +222,24 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                         field = condition[2:condition.find(')=')]
                         value = condition[condition.find(')=')+2:].strip()
                         search_field = field_mapping.get(field, field)
-                        if search_field in ['价格', '好评率', '评论总数', '最高同时在线人数']:
+                        if search_field in ['价格', '好评率', '评论总数', '最高同时在线人数','发布日期']:
                             try:
                                 if search_field == '好评率':
                                     numeric_value = float(value)
                                     if numeric_value > 1:
                                         numeric_value = numeric_value / 100
+                                elif search_field == '发布日期':
+                                    numeric_value = value
                                 else:
                                     numeric_value = float(value)
-                                body['query']['bool']['must'].append({
+                                append_condition('must',{
                                     'match': {search_field: str(numeric_value)}
                                 })
                             except ValueError:
                                 logger.warning(f"Invalid numeric value for {search_field}: {value}")
                                 pass
                         else:
-                            body['query']['bool']['must'].append({
+                            append_condition('must',{
                                 'match': {search_field: value}
                             })
                     elif ')>=' in condition:
@@ -209,9 +251,11 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                                 numeric_value = float(value)
                                 if numeric_value > 1:
                                     numeric_value = numeric_value / 100
+                            elif search_field == '发布日期':
+                                    numeric_value = value
                             else:
                                 numeric_value = float(value)
-                            body['query']['bool']['filter'].append({
+                            append_condition('filter',{
                                 'range': {search_field: {'gte': numeric_value}}
                             })
                         except ValueError:
@@ -226,9 +270,11 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                                 numeric_value = float(value)
                                 if numeric_value > 1:
                                     numeric_value = numeric_value / 100
+                            elif search_field == '发布日期':
+                                    numeric_value = value
                             else:
                                 numeric_value = float(value)
-                            body['query']['bool']['filter'].append({
+                            append_condition('filter',{
                                 'range': {search_field: {'lte': numeric_value}}
                             })
                         except ValueError:
@@ -243,9 +289,11 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                                 numeric_value = float(value)
                                 if numeric_value > 1:
                                     numeric_value = numeric_value / 100
+                            elif search_field == '发布日期':
+                                    numeric_value = value
                             else:
                                 numeric_value = float(value)
-                            body['query']['bool']['filter'].append({
+                            append_condition('filter',{
                                 'range': {search_field: {'gt': numeric_value}}
                             })
                         except ValueError:
@@ -260,9 +308,11 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                                 numeric_value = float(value)
                                 if numeric_value > 1:
                                     numeric_value = numeric_value / 100
+                            elif search_field == '发布日期':
+                                    numeric_value = value
                             else:
                                 numeric_value = float(value)
-                            body['query']['bool']['filter'].append({
+                            append_condition('filter',{
                                 'range': {search_field: {'lt': numeric_value}}
                             })
                         except ValueError:
@@ -276,7 +326,7 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
         if query:
             # 判断是否为复杂检索式
             is_advanced_expr = query.strip().startswith('(#')
-            if (mode == 'advanced') or (mode == 'simple' and is_advanced_expr):
+            if is_advanced_expr:
                 # 按复杂检索式处理
                 handle_advanced_query(query, lang)
             else:
@@ -301,7 +351,7 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                     '媒体评价',
                     'Reviews'
                 ]
-                body['query']['bool']['must'].append({
+                append_condition('must',{
                     'multi_match': {
                         'query': query_string,
                         'fields': search_fields,
@@ -319,7 +369,7 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
             if 'maxPrice' in filters:
                 price_range['lte'] = filters['maxPrice']
             if price_range:
-                body['query']['bool']['filter'].append({
+                append_condition('filter',{
                     'range': {'价格': price_range}
                 })
 
@@ -330,13 +380,13 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
             if 'toDate' in filters:
                 date_range['lte'] = filters['toDate']
             if date_range:
-                body['query']['bool']['filter'].append({
+                append_condition('filter',{
                     'range': {'发布日期': date_range}
                 })
 
             # 游戏类型筛选
             if 'types' in filters and filters['types']:
-                body['query']['bool']['must'].append({
+                append_condition('must',{
                     'bool': {
                         'must': [{'term': {'游戏类别': game_type}} for game_type in filters['types']]
                     }
@@ -353,13 +403,13 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                     elif platform.lower() == 'linux':
                         platform_conditions.append({'term': {'支持Linux': True}})
                 if platform_conditions:
-                    body['query']['bool']['filter'].append({
+                    append_condition('filter',{
                         'bool': {'should': platform_conditions, 'minimum_should_match': 1}
                     })
 
             # 语言筛选
             if 'languages' in filters and filters['languages']:
-                body['query']['bool']['must'].append({
+                append_condition('must',{
                     'bool': {
                         'must': [{'term': {'支持语言': language}} for language in filters['languages']]
                     }
@@ -367,7 +417,7 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
 
             # 标签筛选
             if 'tags' in filters and filters['tags']:
-                body['query']['bool']['must'].append({
+                append_condition('must',{
                     'bool': {
                         'must': [{'term': {'游戏标签': tag}} for tag in filters['tags']]
                     }
@@ -375,19 +425,19 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
 
             # 好评率筛选
             if 'minRating' in filters:
-                body['query']['bool']['filter'].append({
+                append_condition('must',{
                     'range': {'好评率': {'gte': filters['minRating']}}
                 })
 
             # 评论数筛选
             if 'minReviews' in filters:
-                body['query']['bool']['filter'].append({
+                append_condition('must',{
                     'range': {'评论总数': {'gte': filters['minReviews']}}
                 })
 
             # 同时在线人数筛选
             if 'minPeakCCU' in filters:
-                body['query']['bool']['filter'].append({
+                append_condition('must',{
                     'range': {'最高同时在线人数': {'gte': filters['minPeakCCU']}}
                 })
 
@@ -417,7 +467,6 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
         games = []
         for hit in hits:
             game = hit['_source']
-            
             # 根据语言选择名称
             if lang == 'en' and 'Name' in game:
                 game['名称'] = game['Name']
@@ -445,7 +494,6 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                 game['header_image'] = game['展示图片链接']
             
             games.append(game)
-        
         return {
             'games': games,
             'total': total
@@ -454,6 +502,7 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
         raise e
+
 
 @app.route('/')
 def home():
@@ -563,17 +612,27 @@ def search():
             selected_filters['minPeakCCU'] = int(min_peak_ccu)
         except ValueError:
             pass
-    
+    # 处理 vector_query 参数
+    vector_query = request.args.get('vector_query')
+    if vector_query:
+        try:
+            vector_query = json.loads(vector_query)  # 将 JSON 字符串解析为 Python 对象
+            if isinstance(vector_query, dict):
+                vector_query = [(vector_query['field'], vector_query['weight'], vector_query['text'])]
+            elif isinstance(vector_query, list):
+                vector_query = [(item['field'], item['weight'], item['text']) for item in vector_query]
+            else:
+                vector_query = None
+        except (json.JSONDecodeError, KeyError, TypeError):
+            vector_query = None
     # 获取排序方式
     sort = request.args.get('sort', 'relevance')
     
     # 获取分页参数
     page = int(request.args.get('page', 1))
     page_size = int(request.args.get('page_size', 20))
-    
     # 执行搜索
-    results = search_games(query, filters, sort, page, page_size, mode, lang)
-    
+    results = search_games(query, filters, sort, page, page_size, mode, lang,vector_query)
     return render_template('search.html', 
                          lang=lang, 
                          query=query, 
@@ -584,7 +643,8 @@ def search():
                          results=results['games'],
                          total=results['total'],
                          page=page,
-                         page_size=page_size)
+                         page_size=page_size,
+                         vector_query=vector_query)
 
 @app.route('/api/search', methods=['POST'])
 def api_search():
@@ -597,7 +657,20 @@ def api_search():
         page_size = int(data.get('page_size', 20))
         mode = data.get('mode', 'advanced')
         lang = data.get('lang', 'zh')
-        
+        vector_query=data.get('vector_query','')
+        try:
+            # vector_query 可能是嵌套列表形式: [["field", weight, "text"], ...]
+            if isinstance(vector_query, str):
+                vector_query = json.loads(vector_query)
+            if isinstance(vector_query, list) and all(isinstance(item, list) and len(item) == 3 for item in vector_query):
+                vector_query = [(item[0], item[1], item[2]) for item in vector_query]
+            elif isinstance(vector_query, dict):
+                vector_query = [(vector_query['field'], vector_query['weight'], vector_query['text'])]
+            else:
+                vector_query = None
+        except (json.JSONDecodeError, KeyError, TypeError):
+            print('-'*50)
+            vector_query = None
         # 使用统一的search_games函数
         results = search_games(
             query=query,
@@ -606,7 +679,8 @@ def api_search():
             page=page,
             page_size=page_size,
             mode=mode,
-            lang=lang
+            lang=lang,
+            vector_query=vector_query
         )
         
         return jsonify({
@@ -616,6 +690,7 @@ def api_search():
         })
         
     except Exception as e:
+        print('xxxx')
         logger.error(f"Search error: {str(e)}")
         return jsonify({
             'status': 'error',
@@ -739,70 +814,35 @@ def get_categories():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/ai_chat', methods=['POST'])
+@app.route('/api/ai_chat', methods=['POST'])
 def ai_chat():
     data = request.json
-    message = data.get('message', '')
+    history = data.get('history', [])  # 接收完整的对话历史
     mode = data.get('mode', 'chat')
     lang = data.get('lang', 'zh')
     
     try:
         if mode == 'chat':
-            # 模拟AI聊天推荐
-            keywords = jieba.lcut(message) if lang == 'zh' else message.lower().split()
-            recommendations = []
-            
-            for game in DEMO_GAMES:
-                # 简单的关键词匹配
-                score = 0
-                for keyword in keywords:
-                    if keyword in game['名称'].lower() or \
-                       keyword in ' '.join(game['游戏标签']).lower() or \
-                       keyword in ' '.join(game['玩法类型']).lower():
-                        score += 1
-                if score > 0:
-                    recommendations.append({
-                        'appId': game['游戏应用ID'],
-                        'name': game['名称'],
-                        'price': game['价格'],
-                        'headerImage': game['header_image'],
-                        'posRatio': game['好评率'],
-                        'shortDescription': game['媒体评价']
-                    })
-            
-            if not recommendations:
-                # 如果没有匹配的游戏，返回热门游戏
-                recommendations = sorted(
-                    [{
-                        'appId': game['游戏应用ID'],
-                        'name': game['名称'],
-                        'price': game['价格'],
-                        'headerImage': game['header_image'],
-                        'posRatio': game['好评率'],
-                        'shortDescription': game['媒体评价']
-                    } for game in DEMO_GAMES],
-                    key=lambda x: x['posRatio'],
-                    reverse=True
-                )[:5]
-            
-            reply = "根据您的描述，我为您推荐以下游戏：" if lang == 'zh' else "Based on your description, I recommend these games:"
-            
+            reply = generate_response_with_prompt(history=history,lang=lang,mode=mode)
             return jsonify({
                 'status': 'success',
                 'reply': reply,
-                'recommendations': recommendations[:5]
             })
         else:
             # 生成搜索表达式
-            search_expr = ' '.join(jieba.lcut(message)) if lang == 'zh' else message
+            reply = generate_response_with_prompt(history=history,lang=lang,mode=mode)
             return jsonify({
                 'status': 'success',
-                'searchExpression': search_expr
+                'summary': reply['summary'],
+                'query': reply['query'],
+                'filters': reply['filters'],
+                'vector_query': reply['vector_query']
             })
             
     except Exception as e:
         print(f"Error in AI chat: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
+    
 @app.route('/game/<app_id>')
 def game_detail(app_id):
     lang = request.args.get('lang', 'zh')
