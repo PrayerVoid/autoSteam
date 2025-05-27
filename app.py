@@ -133,7 +133,7 @@ def search_games(query='', filters=None, sort='relevance', page=1, page_size=20,
                              'filter':[]},
                     },
                     'script': {
-                        'source': "double totalScore = 0; for (int i = 0; i < params.vector_queries.size(); i++) { def vector_query = params.vector_queries[i]; String field = vector_query.get(\"field\"); double weight = vector_query.get(\"weight\"); def query_vector = vector_query.get(\"vector\"); double cosine_similarity = cosineSimilarity( query_vector,field); totalScore += weight * cosine_similarity; } return totalScore;",
+                        'source': "double totalScore = 0; for (int i = 0; i < params.vector_queries.size(); i++) { def vector_query = params.vector_queries[i]; String field = vector_query.get(\"field\"); double weight = vector_query.get(\"weight\"); def query_vector = vector_query.get(\"vector\"); double cosine_similarity = Math.abs(cosineSimilarity( query_vector,field)); totalScore += weight * cosine_similarity; } return totalScore;",
                         'params': {
                             'vector_queries': []
                         }
