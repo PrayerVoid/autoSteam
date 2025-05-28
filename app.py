@@ -730,7 +730,7 @@ def popular_games():
             'appId': hit['_source']['游戏应用ID'],
             'name': hit['_source']['Name'] if lang == 'en' else hit['_source']['名称'],
             'price': hit['_source']['价格'],
-            'headerImage': hit['_source']['展示图片链接'],
+            'headerImage': hit['_source'].get('展示图片链接', '/static/images/no-image.png'),
             'posRatio': hit['_source']['好评率'],
         } for hit in hits]
 
@@ -786,13 +786,135 @@ def personalized_games():
         logger.error(f"Error fetching personalized games: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+def build_filter_query(filters):
+    must_clauses = []
+    filter_clauses = []
+
+    # 价格范围筛选
+    if 'minPrice' in filters or 'maxPrice' in filters:
+        price_range = {}
+        if 'minPrice' in filters:
+            price_range['gte'] = filters['minPrice']
+        if 'maxPrice' in filters:
+            price_range['lte'] = filters['maxPrice']
+        filter_clauses.append({"range": {"价格": price_range}})
+
+    # 发布日期筛选
+    if 'fromDate' in filters or 'toDate' in filters:
+        date_range = {}
+        if 'fromDate' in filters:
+            date_range['gte'] = filters['fromDate']
+        if 'toDate' in filters:
+            date_range['lte'] = filters['toDate']
+        filter_clauses.append({"range": {"发布日期": date_range}})
+
+    # 游戏类型筛选
+    if 'types' in filters and filters['types']:
+        must_clauses.append({
+            "bool": {
+                "should": [
+                    {"term": {"游戏类别": game_type}} for game_type in filters['types']
+                ],
+                "minimum_should_match": 1
+            }
+        })
+    # 平台筛选
+    if 'platforms' in filters and filters['platforms']:
+        platform_conditions = []
+        for platform in filters['platforms']:
+            if platform.lower() == 'windows':
+                platform_conditions.append({"term": {"支持Windows": True}})
+            elif platform.lower() == 'mac':
+                platform_conditions.append({"term": {"支持Mac": True}})
+            elif platform.lower() == 'linux':
+                platform_conditions.append({"term": {"支持Linux": True}})
+        if platform_conditions:
+            filter_clauses.append({
+                "bool": {"should": platform_conditions, "minimum_should_match": 1}
+            })
+
+    # 标签筛选
+    if 'tags' in filters and filters['tags']:
+        must_clauses.append({
+            "bool": {
+                "must": [{"term": {"游戏标签": tag}} for tag in filters['tags']]
+            }
+        })
+
+    return {
+        "query": {
+            "bool": {
+                "must": must_clauses,
+                "filter": filter_clauses
+            }
+        },
+        "size": 0,
+        "aggs": {
+            "game_types": {"terms": {"field": "游戏类别.keyword", "size": 100}},
+            "tags": {"terms": {"field": "游戏标签.keyword", "size": 100}},
+            "release_years": {
+                "date_histogram": {"field": "发布日期", "calendar_interval": "year"}
+            },
+            "price_ranges": {
+                "range": {
+                    "field": "价格",
+                    "ranges": [
+                        {"to": 0, "key": "free"},
+                        {"from": 0, "to": 10, "key": "under_10"},
+                        {"from": 10, "to": 30, "key": "10_to_30"},
+                        {"from": 30, "to": 60, "key": "30_to_60"},
+                        {"from": 60, "key": "above_60"}
+                    ]
+                }
+            }
+        }
+    }
+    
 @app.route('/api/categories', methods=['POST'])
 def get_categories():
     try:
-        # 收集所有类别、标签和发布年份
-        genres = {}  # 使用字典来统计数量
-        tags = {}
-        years = {}
+        data = request.get_json()
+        filters = data.get('filters', {})
+
+        # 构建包含筛选条件的查询体
+        body = build_filter_query(filters)
+
+        # 添加聚合规则
+        body["aggs"] = {
+            "game_types": {"terms": {"field": "游戏类别.keyword", "size": 100}},
+            "tags": {"terms": {"field": "游戏标签.keyword", "size": 100}},
+            "release_years": {"date_histogram": {"field": "发布日期", "calendar_interval": "year"}},
+            "price_ranges": {
+                "range": {
+                    "field": "价格",
+                    "ranges": [
+                        {"to": 0, "key": "free"},
+                        {"from": 0, "to": 10, "key": "under_10"},
+                        {"from": 10, "to": 30, "key": "10_to_30"},
+                        {"from": 30, "to": 60, "key": "30_to_60"},
+                        {"from": 60, "key": "above_60"}
+                    ]
+                }
+            }
+        }
+
+        # 执行查询
+        response = es.search(index='steam_games', body=body)
+        aggregations = response.get('aggregations', {})
+
+        # 使用聚合结果
+        genres = [{'id': b['key'], 'name': b['key'], 'count': b['doc_count']} 
+                  for b in aggregations.get('game_types', {}).get('buckets', [])]
+
+        tags = [{'id': b['key'], 'name': b['key'], 'count': b['doc_count']} 
+                for b in aggregations.get('tags', {}).get('buckets', [])]
+
+        years = []
+        year_buckets = aggregations.get('release_years', {}).get('buckets', [])
+        for bucket in year_buckets:
+            year = int(str(bucket['key_as_string'])[:4])
+            years.append({'year': year, 'count': bucket['doc_count']})
+
         price_ranges = {
             'free': 0,
             'under_10': 0,
@@ -800,44 +922,19 @@ def get_categories():
             '30_to_60': 0,
             'above_60': 0
         }
-        
-        for game in DEMO_GAMES:
-            # 统计游戏类型
-            for genre in game['玩法类型']:
-                genres[genre] = genres.get(genre, 0) + 1
-            
-            # 统计标签
-            for tag in game['游戏标签']:
-                tags[tag] = tags.get(tag, 0) + 1
-            
-            # 统计发布年份
-            year = datetime.strptime(game['发布日期'], '%Y-%m-%d').year
-            years[year] = years.get(year, 0) + 1
-            
-            # 统计价格区间
-            price = game['价格']
-            if price == 0:
-                price_ranges['free'] += 1
-            elif price < 10:
-                price_ranges['under_10'] += 1
-            elif price < 30:
-                price_ranges['10_to_30'] += 1
-            elif price < 60:
-                price_ranges['30_to_60'] += 1
-            else:
-                price_ranges['above_60'] += 1
 
-        # 返回分类数据，按数量从高到低排序
+        price_data = aggregations.get('price_ranges', {}).get('buckets', [])
+        for item in price_data:
+            key = item['key']
+            count = item['doc_count']
+            if key in price_ranges:
+                price_ranges[key] = count
+
         return jsonify({
             'status': 'success',
-            'gameTypes': sorted([{'id': genre, 'name': genre, 'count': count} 
-                        for genre, count in genres.items()],
-                        key=lambda x: x['count'], reverse=True),
-            'tags': sorted([{'id': tag, 'name': tag, 'count': count} 
-                    for tag, count in tags.items()],
-                    key=lambda x: x['count'], reverse=True),
-            'years': [{'year': year, 'count': count} 
-                    for year, count in sorted(years.items())],
+            'gameTypes': sorted(genres, key=lambda x: x['count'], reverse=True),
+            'tags': sorted(tags, key=lambda x: x['count'], reverse=True),
+            'years': sorted(years, key=lambda x: x['year']),
             'priceRanges': [
                 {'id': 'free', 'name': '免费游戏', 'count': price_ranges['free']},
                 {'id': 'under_10', 'name': '¥10以下', 'count': price_ranges['under_10']},
@@ -846,11 +943,10 @@ def get_categories():
                 {'id': 'above_60', 'name': '¥60以上', 'count': price_ranges['above_60']}
             ]
         })
-        
+
     except Exception as e:
         print(f"Error fetching categories: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
 @app.route('/api/ai_chat', methods=['POST'])
 @app.route('/api/ai_chat', methods=['POST'])
 def ai_chat():
@@ -881,17 +977,81 @@ def ai_chat():
         print(f"Error in AI chat: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
     
-@app.route('/game/<app_id>')
+@app.route('/game/<int:app_id>')
 def game_detail(app_id):
     lang = request.args.get('lang', 'zh')
-    
-    # 查找游戏
-    game = next((g for g in DEMO_GAMES if g['游戏应用ID'] == app_id), None)
-    
-    if not game:
+
+    try:
+        # 1. 检查文档是否存在
+        # 用 term 查询检查是否存在该“游戏应用ID”
+        search_body = {
+            "query": {
+            "term": {
+                "游戏应用ID": app_id
+            }
+            },
+            "size": 1
+        }
+        search_result = es.search(index='steam_games', body=search_body)
+        if not search_result['hits']['hits']:
+            logger.warning(f"Game with 游戏应用ID {app_id} does not exist.")
+            return render_template('404.html', lang=lang), 404
+
+        # 2. 获取游戏详情
+        # 用 term 查询获取游戏详情，确保用“游戏应用ID”字段
+        detail_body = {
+            "query": {
+            "term": {
+                "游戏应用ID": app_id
+            }
+            },
+            "size": 1
+        }
+        detail_result = es.search(index='steam_games', body=detail_body)
+        if not detail_result['hits']['hits']:
+            logger.warning(f"Game with 游戏应用ID {app_id} does not exist (detail fetch).")
+            return render_template('404.html', lang=lang), 404
+        result = detail_result['hits']['hits'][0]
+
+        # 3. 提取数据（优先使用 _source）
+        game = result.get('_source', {})
+        if not game and 'fields' in result:
+            game = result['fields']  # 尝试从 fields 获取字段值
+
+        if not game:
+            logger.error(f"Game {app_id} has no usable data.")
+            return render_template('404.html', lang=lang), 404
+
+        # 4. 多语言字段兼容处理
+        if lang == 'en':
+            game['名称'] = game.get('Name') or game.get('名称', 'N/A')
+            game['游戏简介'] = game.get('About the game') or game.get('游戏简介', 'No description available.')
+            game['媒体评价'] = game.get('Reviews') or game.get('媒体评价', 'No reviews available.')
+            game['开发商'] = game.get('Developers') or game.get('开发商', 'Unknown')
+            game['发行商'] = game.get('Publishers') or game.get('发行商', 'Unknown')
+
+        # 5. 图片路径兼容处理
+        game['header_image'] = game.get('Header image') or game.get('展示图片链接') or '/static/images/no-image.png'
+
+        # 6. 平台字段补全
+        game['支持Windows'] = bool(game.get('支持Windows', False))
+        game['支持Mac'] = bool(game.get('支持Mac', False))
+        game['支持Linux'] = bool(game.get('支持Linux', False))
+
+        # 7. 系统需求字段补全
+        if '系统需求' not in game:
+            game['系统需求'] = {}
+        if '最低配置' not in game['系统需求']:
+            game['系统需求']['最低配置'] = None
+        if '推荐配置' not in game['系统需求']:
+            game['系统需求']['推荐配置'] = None
+
+        # 8. 渲染页面
+        return render_template('game_detail.html', game=game, lang=lang)
+
+    except Exception as e:
+        logger.error(f"Error fetching game detail from Elasticsearch: {str(e)}")
         return render_template('404.html', lang=lang), 404
-    
-    return render_template('game_detail.html', game=game, lang=lang)
 
 @app.route('/api/search_stats', methods=['POST'])
 def get_search_stats():
@@ -937,4 +1097,4 @@ def advanced_search():
     return render_template('advanced_search.html', lang=lang)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

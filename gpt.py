@@ -1,7 +1,8 @@
 import asyncio
 from openai import AsyncOpenAI
+import random
 
-
+apikeys=['595876ef8347467585f50f43af419ad9.2dtMBnRS0swoDBvR', '3b70962e17aa4b229b3e1b95c954f857.yXiX4XwoK2JOuGTn','c90fb13295234851aeee5a44eae6d650.t0CaxOWUg5guSXPz','0be88cb4f9534be3b38b63f9650f2fe7.9fuHB3dGebMrdfcg']
 # 定义异步主函数，用于与 OpenAI API 交互
 async def main(history):
     """
@@ -13,9 +14,12 @@ async def main(history):
     返回:
         None
     """
+    
+    api_key = random.choice(apikeys)  # 随机选择一个 API 密钥
     # 初始化 OpenAI 客户端
     client = AsyncOpenAI(
-        api_key="3b70962e17aa4b229b3e1b95c954f857.yXiX4XwoK2JOuGTn",  # API 密钥
+        
+        api_key=api_key,  # API 密钥
         base_url="https://open.bigmodel.cn/api/paas/v4",  # API 基础 URL
     )
 
